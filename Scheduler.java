@@ -6,42 +6,58 @@ import java.sql.*;
  * Tables of the DB: Appointment, Doctor, Patient, Medical Employee, Receptionist
  */
 public class Scheduler {
-    final String databaseURL = "jdbc:ucanaccess://src//patient_scheduler//SchedulerDB.accdb";
-
+    final static String databaseURL = "jdbc:ucanaccess://src//patient_scheduler//SchedulerDB.accdb";
     /**
      * Opens the scheduler.
      * GUI interacts with Scheduler object and associated methods
      */
     public Scheduler(){
-        //for testing
-        Patient temp = new Patient("hendrik","nguyen","04/29/1996","123123123","714-732-3525", "Cal Poly Pomona");
-        createPatientRecord(temp);
+        try(Connection connection = DriverManager.getConnection(databaseURL)){
+            //for testing
+            Patient temp = new Patient("hendrik","nguyen","04/29/1996","123123123","714-732-3525", "Cal Poly Pomona");
+            createPatientRecord(connection, temp);
+            Doctor temp2 = new Doctor("Mike", "911", "password123");
+            createDoctorRecord(connection,temp2);
+        }catch(SQLException ex){
+            System.out.println("Unable to connect to SchedulerDB.accdb");
+        }
+
     }
 
     /**
      * Opens connection to DB and inserts new record into Patient table.
      * The patient argument is instantiated and passed after receiving inputted data fields
      *
-     * @param patient provides data for 5 fields of Patient record
+     * @param patient provides data for 5 fields of Patient
+     * @param c connection to SchedulerDB passed from Scheduler object
      */
-    public void createPatientRecord(Patient patient){
-        try(Connection connection = DriverManager.getConnection(databaseURL)){
-            String patientInfo = "INSERT INTO Patient (First_Name, Last_Name, Date_of_Birth, SSN, Phone, Address) VALUES (?, ?, ?, ?, ?, ?)";
-            PreparedStatement preparedStatement = connection.prepareStatement(patientInfo);
-            preparedStatement.setString(1,  patient.getFname());
-            preparedStatement.setString(2,  patient.getLname());
-            preparedStatement.setString(3,  patient.getDOB());
-            preparedStatement.setString(4,  patient.getSSN());
-            preparedStatement.setString(5,  patient.getPhone());
-            preparedStatement.setString(6, patient.getAddress());
-            preparedStatement.executeUpdate();
-            System.out.println("New Record Created");
+    public void createPatientRecord(Connection c, Patient patient){
+        String patientInfo = "INSERT INTO Patient (First_Name, Last_Name, Date_of_Birth, SSN, Phone, Address) VALUES (?, ?, ?, ?, ?, ?)";
+        try(PreparedStatement statement = c.prepareStatement(patientInfo)){
+            statement.setString(1,  patient.getFname());
+            statement.setString(2,  patient.getLname());
+            statement.setString(3,  patient.getDOB());
+            statement.setString(4,  patient.getSSN());
+            statement.setString(5,  patient.getPhone());
+            statement.setString(6, patient.getAddress());
+            statement.executeUpdate();
+            System.out.println("New  Patient Record Created");
         } catch (SQLException ex){
-            System.out.println("Not Able to Create New Record");
+            System.out.println("Not Able to Create New Patient Record");
         }
     }
 
-    public void createDoctorRecord(Doctor doctor){
+    public void createDoctorRecord(Connection c, Doctor doctor){
+        String doctorInfo = "INSERT INTO Doctor (D_Name, Phone, D_Password) VALUE (?, ?, ?)";
+        try(PreparedStatement statement = c.prepareStatement(doctorInfo)){
+            statement.setString(1, doctor.getD_Name());
+            statement.setString(2, doctor.getPhone());
+            statement.setString(3, doctor.getD_Password());
+            statement.executeUpdate();
+            System.out.println("New Doctor Record Created");
+        }catch(SQLException ex){
+            System.out.println("Not Able to Create New Doctor Record");
+        }
 
     }
 
@@ -75,8 +91,4 @@ public class Scheduler {
         private String getD_Password(){return D_Password;}
     }
 
-    public static void main(String[] args) {
-        Scheduler test = new Scheduler();
-
-    }
 }
