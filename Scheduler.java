@@ -1,5 +1,7 @@
-package patient_scheduler;
+package paitent_scheduler;
 import java.sql.*;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 /**
  * This class is used to interact with the SchedulerDB.accdb
@@ -89,6 +91,64 @@ public class Scheduler {
         private String getD_Name(){return D_Name;}
         private String getPhone(){return Phone;}
         private String getD_Password(){return D_Password;}
+    }
+    
+    public class Appointment{
+    	private int appointment_ID;
+    	private int patient_ID;
+    	private LocalDate appt_Date;
+    	private LocalTime appt_Time;
+    	private int doctor_ID;
+    	private String reason;
+    	
+    	public Appointment() {
+    		
+    	}
+    	public Appointment(int app_id, int pat_id, LocalDate app_date, LocalTime app_time, int doc_id, String reason) {
+    		setAppointment_ID(app_id);
+    		setPatient_ID(pat_id);
+    		setAppt_Date(app_date);
+    		setAppt_Time(app_time);
+    		setDoctor_ID(doc_id);
+    		this.setReason(reason);
+    	}
+		public int getAppointment_ID() {
+			return appointment_ID;
+		}
+		public void setAppointment_ID(int appointment_ID) {
+			this.appointment_ID = appointment_ID;
+		}
+		public int getPatient_ID() {
+			return patient_ID;
+		}
+		public void setPatient_ID(int patient_ID) {
+			this.patient_ID = patient_ID;
+		}
+		public LocalDate getAppt_Date() {
+			return appt_Date;
+		}
+		public void setAppt_Date(LocalDate appt_Date) {
+			this.appt_Date = appt_Date;
+		}
+		public LocalTime getAppt_Time() {
+			return appt_Time;
+		}
+		public void setAppt_Time(LocalTime appt_Time) {
+			this.appt_Time = appt_Time;
+		}
+		public int getDoctor_ID() {
+			return doctor_ID;
+		}
+		public void setDoctor_ID(int doctor_ID) {
+			this.doctor_ID = doctor_ID;
+		}
+		public String getReason() {
+			return reason;
+		}
+		public void setReason(String reason) {
+			this.reason = reason;
+		}
+    	
     }
 
 }

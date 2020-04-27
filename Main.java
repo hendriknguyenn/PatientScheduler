@@ -1,4 +1,4 @@
-package patient_scheduler;
+package paitent_scheduler;
 
 import javafx.application.Application;
 import javafx.beans.value.ChangeListener;
@@ -11,13 +11,22 @@ import javafx.scene.control.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.*;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
+import paitent_scheduler.Scheduler.Appointment;
 
 import java.awt.*;
 import java.awt.ScrollPane;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Date;
 
 
@@ -29,6 +38,8 @@ public class Main extends Application{
     private boolean isReceptionist;
     private LocalDateTime today = LocalDateTime.now(), currentDay;
     BorderPane home, appointmentView, databaseView;
+	final String dbUrl = "jdbc:ucanaccess://src//SchedulerDB.accdb";
+
 
     @Override
     public void start(Stage ps) throws Exception {
@@ -60,36 +71,89 @@ public class Main extends Application{
             if(currentDay.getDayOfYear() == today.getDayOfYear() && currentDay.getYear() == today.getYear())
                 prevDay.setDisable(true);
         });
-        primaryStage.setScene(homeScene);
+        primaryStage.setScene(createLoginScene());
         primaryStage.show();
     }
 
     /**
      * builds login scene, checks for reception or non-reception login session
      */
-    public void createLoginScene(){
-        Label heading = new Label("Enter Login Credentials");
-        Label userLb = new Label("Employee ID: ");
+    public Scene createLoginScene(){
+        Label enterLoginInfoLb = new Label("Enter Login Credentials");
+        Label userLb = new Label("Username: ");
         Label pwLb = new Label("Password: ");
+       
+        ChoiceBox<String> accountTypeDrop = new ChoiceBox<>();
+        accountTypeDrop.getItems().addAll("Receptionist", "Doctor", "Medical Employee");
+        
+        LoginTextFieldListener textFieldListener = new LoginTextFieldListener();
         usernameTF = new TextField();
-        pwTF = new TextField();
-        //text listener waits for input in both username and password field, sets Enter button disabled until inputs
-        LoginTextFieldListener loginListener = new LoginTextFieldListener();
-        usernameTF.textProperty().addListener(loginListener);
-        pwTF.textProperty().addListener(loginListener);
-        loginBtn = new Button("Enter");
-        loginBtn.setDisable(true);
+        pwTF = new PasswordField();
+        usernameTF.textProperty().addListener(textFieldListener);
+        pwTF.textProperty().addListener(textFieldListener);
+        loginBtn = new Button("Login");
+
         GridPane gpLogin = new GridPane();
-        gpLogin.addRow(0, userLb,usernameTF);
+        gpLogin.addRow(0, userLb, usernameTF);
         gpLogin.addRow(1, pwLb, pwTF);
         gpLogin.setVgap(10);
         gpLogin.setHgap(10);
         gpLogin.setAlignment(Pos.CENTER);
-        VBox vbLogin = new VBox(20, heading, gpLogin, loginBtn);
+        VBox vbLogin = new VBox(20, enterLoginInfoLb, gpLogin, accountTypeDrop, loginBtn);
         vbLogin.setAlignment(Pos.CENTER);
-        loginScene = new Scene(vbLogin, 475, 375);
-        //first scene
-        currScene = loginScene;
+        loginBtn.setOnAction(e -> handle(accountTypeDrop));
+        return new Scene(vbLogin, 475, 375);
+    }
+    /*
+     * @param takes in the drop down menu option
+     * Desc: when user presses login button, the application will make connection to database to confirm credentials
+     */
+    public void handle (ChoiceBox<String> accountTypeDrop ) { // when the button is clicked
+    		try { 
+    			String credential = accountTypeDrop.getValue();	// getting the option the user chose in dropdown
+    			String IDquery = null;
+    			String passQuery = null;
+    			if(credential=="Receptionist") {				// changes values for obtaining login from msaccess database
+    				IDquery = "Receptionist_ID=?";
+    				passQuery = "R_Password=?";
+    			}
+    			else if (credential=="Doctor") {
+    				IDquery = "Doctor_ID=?";
+    				passQuery = "D_Password=?";
+    			}
+    			else if (credential=="Medical Employee") {
+    				credential = "MedicalEmployee";
+    				IDquery = "Med_Employee_ID=?";
+    				passQuery = "ME_Password=?";
+    			}
+    			int ID = Integer.parseInt(usernameTF.getText());  // get the ID number from the input
+    			String pword = pwTF.getText();
+    			Connection con = DriverManager.getConnection(dbUrl);
+				PreparedStatement pst = con.prepareStatement("Select * FROM " +credential+ " WHERE " +IDquery+ " AND " +passQuery);
+				pst.setInt(1, ID);
+				pst.setString(2,pword);
+				ResultSet rs = pst.executeQuery();
+				if (rs.next()) {			
+					/*
+					 * ADD if statements to open specific schedules for different users; for example if it is doctor, open the 
+					 * schedule so that it is the correct schedule for the role of the doctor to view. Doctors only get 
+					 * to view the schedule. EX: primaryStage.setScene(scheduleDisplayDoctor)
+					 */
+					primaryStage.setScene(homeScene);
+				} 
+				else {
+					Alert wrongCred = new Alert(AlertType.ERROR);
+					wrongCred.setHeaderText("Invalid username or password");
+					wrongCred.setContentText("Please contact your administrator if you forgot your credentials");
+					wrongCred.showAndWait();
+				}
+    		} catch (Exception e) {
+    			System.out.println("Connection to database failed");
+    			Alert invalidUser = new Alert(AlertType.ERROR);
+				invalidUser.setHeaderText("Invalid username or password");
+				invalidUser.setContentText("Please contact your administrator if you forgot your credentials");
+				invalidUser.showAndWait();
+    		}
     }
 
     /**
@@ -140,21 +204,40 @@ public class Main extends Application{
         date.setFont(Font.font("Arial",16));
         day.setTop(date);
 
+
+		ArrayList<Appointment> result_appt = new ArrayList<Appointment>();
+        String resultString = "no appointments";
+        java.sql.Date currentDayFormatted = java.sql.Date.valueOf(currentDay.toLocalDate());
+        
+        Connection con;
+		try {
+			con = DriverManager.getConnection(dbUrl);
+			PreparedStatement pst = con.prepareStatement("Select * FROM Appointment WHERE Appt_Date = '" + currentDayFormatted+ "'");
+			ResultSet result = pst.executeQuery();  
+			while(result.next()) {
+				//result_appt.add( result.getObject(1), Appointment);
+			}
+        	//resultString = result_appt.get(0).toString();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+        
         GridPane times = new GridPane();
         times.setPadding(new Insets(20,0,0,0));
         times.setVgap(20);
         times.addRow(0, new Label("Times"), new Label("Appointment"));
-        times.addRow(1, new Label("7am"));
-        times.addRow(2, new Label("8am"));
-        times.addRow(3, new Label("9am"));
-        times.addRow(4, new Label("10am"));
-        times.addRow(5, new Label("11am"));
-        times.addRow(6, new Label("12pm"));
-        times.addRow(7, new Label("1pm"));
-        times.addRow(8, new Label("2pm"));
-        times.addRow(9, new Label("3pm"));
-        times.addRow(10, new Label("4pm"));
-        times.addRow(11, new Label("5pm"));
+        times.addRow(1, new Label("7am"), new Label(resultString));
+        times.addRow(2, new Label("8am"), new Label(resultString));
+        times.addRow(3, new Label("9am"), new Label(resultString));
+        times.addRow(4, new Label("10am"), new Label(resultString));
+        times.addRow(5, new Label("11am"), new Label(resultString));
+        times.addRow(6, new Label("12pm"), new Label(resultString));
+        times.addRow(7, new Label("1pm"), new Label(resultString));
+        times.addRow(8, new Label("2pm"), new Label(resultString));
+        times.addRow(9, new Label("3pm"), new Label(resultString));
+        times.addRow(10, new Label("4pm"), new Label(resultString));
+        times.addRow(11, new Label("5pm"), new Label(resultString));
 
         times.setStyle("-fx-font: 12px Arial");
 
