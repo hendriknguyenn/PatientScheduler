@@ -12,6 +12,9 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -20,6 +23,8 @@ import javafx.scene.text.Font;
 import javafx.stage.Stage;
 
 import javafx.event.EventHandler;
+
+import java.awt.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -39,7 +44,8 @@ public class TestMain extends Application {
     private TextField usernameTF, pwTF, idTF;
     final String dbUrl = "jdbc:ucanaccess://src//SchedulerDB.accdb";
     final ToggleGroup dataViews = new ToggleGroup();
-    private ComboBox monthOptions, dayOptions, yearOptions;
+    private String currDV;
+    private Scheduler scheduler;
 
     @Override
     public void start(Stage ps) throws Exception {
@@ -59,12 +65,15 @@ public class TestMain extends Application {
                 optionLayout.setCenter(setDataOptions());
             }
         });
+
+
     }
 
 
     // check session type and build home scene: functionsLayout + dataLayout
     public void setHomeScene(String credential) {
         currentDay = today;
+        scheduler = new Scheduler();
         sessionType = credential;
         if(credential == "Receptionist"){ isReceptionist=true;}
         homeLayout = new BorderPane();
@@ -121,17 +130,25 @@ public class TestMain extends Application {
         //set toggle group
         Label header = new Label("Data View");
         patientTBtn = new ToggleButton("Patient Records");
+        patientTBtn.setOnAction(updateCurrDV);
         patientTBtn.setToggleGroup(dataViews);
         employeeTBtn = new ToggleButton("Employee Records");
+        employeeTBtn.setOnAction(updateCurrDV);
         employeeTBtn.setToggleGroup(dataViews);
         doctorTBtn = new ToggleButton("Doctor Records");
+        doctorTBtn.setOnAction(updateCurrDV);
         doctorTBtn.setToggleGroup(dataViews);
         apptViewTBtn = new ToggleButton("Appointment Records");
+        apptViewTBtn.setOnAction(updateCurrDV);
         apptViewTBtn.setToggleGroup(dataViews);
         dayViewTBtn = new ToggleButton("Day View");
+        dayViewTBtn.setOnAction(updateCurrDV);
         dayViewTBtn.setToggleGroup(dataViews);
         //default on start up
         dayViewTBtn.setSelected(true);
+        currDV = "Day View";
+
+
 
         if(sessionType == "Doctor"){
             doctorApptTBtn = new ToggleButton("View Appointments");
@@ -180,7 +197,7 @@ public class TestMain extends Application {
 
     public VBox setDataLayoutCenter(){
         VBox center = new VBox();
-        center.setPrefSize(650, 400);
+        center.setPrefSize(650, 500);
         //3 types: Record, DayView, Appointments
         if(patientTBtn.isSelected()){
 
@@ -213,11 +230,11 @@ public class TestMain extends Application {
                 "-fx-border-insets: 5;" +
                 "-fx-border-radius: 5;" +
                 "-fx-border-color: blue;");
-        searchBar.setPrefSize(500, 100);
+        searchBar.setPrefSize(500, 50);
         Label enterID = new Label("Enter ID: ");
         idTF = new TextField();
         searchBtn = new Button("Search");
-        if(!dayViewTBtn.isSelected()){
+        if(currDV=="Day View"){
             //only day view searches by drop down
             nextDayBtn = new Button(">");
             prevDayBtn = new Button("<");
@@ -229,12 +246,37 @@ public class TestMain extends Application {
         return searchBar;
     }
 
+    public void updateDataLayout(){
+        dataLayout.setTop(setDataLayoutHeader());
+        dataLayout.setCenter(setDataLayoutCenter());
+        dataLayout.setBottom(setDataLayoutBottom());
+    }
+
     /**
      * gets table attributes by selected Table; fills with data from Scheduler
      * @return view of Records Table- patient, employee, doctor OR apptView, doctorAppt
      */
     public void buildRecordView(){
-        if(patientTBtn.isSelected()){
+        HBox row = new HBox();
+        row.setPrefSize(650, 500);
+        String[] attributes;
+        Object[] values;
+        switch(currDV){
+            case "Patient Records":
+                attributes = scheduler.getPatientFields();
+                values = scheduler.getAppointments(currentDay);
+
+            case "Employee Records":
+                attributes = scheduler.getEmployeeFields();
+
+            case "Doctor Records":
+                attributes = scheduler.getEmployeeFields();
+
+            case "Appointment Records":
+                attributes = new String[]{"Date", "Appointment"};
+
+            case "Doctor Appointments":
+                attributes = new String[]{"Date", "Assignment"};
 
         }
     }
@@ -324,67 +366,27 @@ public class TestMain extends Application {
         }
     }
 
-    EventHandler<ActionEvent> yearSelected = new EventHandler<ActionEvent>(){
-        public void handle(ActionEvent e){
-            String[] month;
-            String year = yearOptions.getValue().toString();
-            if(year == Integer.toString(currentDay.getYear())){
-                //build monthOptions
-                int monthStart = currentDay.getMonth().getValue();
-                month = new String[13-monthStart];
-                int index = 0;
-                for(int i=monthStart; i<month.length; i++){
-                    if(i<10){
-                        month[index] = "0" + i;
-                    }else{
-                        month[index] = Integer.toString(i);
-                    }
-                    index++;
-                }
-            }else{
-                month = new String[]{"01","02","03","04","05","06","07", "08", "09","10","11","12"};
-            }
-            monthOptions = new ComboBox(FXCollections.observableArrayList(month));
-            monthOptions.setDisable(false);
-        }
-    };
-
-    EventHandler<ActionEvent> monthSelected = new EventHandler<ActionEvent>() {
+    EventHandler<ActionEvent> updateCurrDV = new EventHandler<ActionEvent>() {
         @Override
         public void handle(ActionEvent event) {
-            int max = 31;
-            String[] days;
-            String month = monthOptions.getValue().toString();
-            if(Integer.parseInt(month)%2 == 0)
-                max = 30;
-            days = new String[max];
-            for(int i=1; i<=max; i++){
-                if(i<10){
-                    days[i-1] = "0"+i;
-                }else{
-                    days[i-1] = Integer.toString(i);
-                }
+            Toggle selected = dataViews.getSelectedToggle();
+            if(patientTBtn.isSelected()){
+                currDV = "Patient Records";
+            }else if(employeeTBtn.isSelected()){
+                currDV = "Employee Records";
+            }else if(doctorTBtn.isSelected()){
+                currDV = "Doctor Records";
+            }else if(dayViewTBtn.isSelected()){
+                currDV = "Day View";
+            }else if(apptViewTBtn.isSelected()){
+                currDV = "Appointment Records";
+            }else{
+                //doctor appointments
+                currDV = "Doctor Appointments";
             }
-            dayOptions = new ComboBox(FXCollections.observableArrayList(days));
-            String y = yearOptions.getValue().toString();
-            String m = monthOptions.getValue().toString();
-            String d = dayOptions.getValue().toString();
-            changeDateBtn.setDisable(y.trim().equals("") || m.trim().equals("") || d.trim().equals(""));
+            updateDataLayout();
         }
     };
-
-    /**
-     * Allows change date after yearOption, monthOption, dayOption selected
-     */
-    private class DateChangeListener implements ChangeListener<String>{
-        @Override
-        public void changed(ObservableValue<? extends String> observable, String oldValue, String newValue) {
-            String year = yearOptions.getValue().toString();
-            String month = monthOptions.getValue().toString();
-            String day = dayOptions.getValue().toString();
-            changeDateBtn.setDisable(year.trim().equals("") || month.trim().equals("") || day.trim().equals(""));
-        }
-    }
 
     /**
      * Text listener for login fields; enables Enter button when username and password field not empty
