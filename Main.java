@@ -1,4 +1,4 @@
-package paitent_scheduler;
+package patient_scheduler;
 
 import javafx.application.Application;
 import javafx.beans.value.ChangeListener;
@@ -15,7 +15,7 @@ import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.*;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
-import paitent_scheduler.Scheduler.Appointment;
+import patient_scheduler.Scheduler.Appointment;
 
 import java.awt.*;
 import java.awt.ScrollPane;
@@ -24,7 +24,10 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
@@ -205,40 +208,61 @@ public class Main extends Application{
         day.setTop(date);
 
 
-		ArrayList<Appointment> result_appt = new ArrayList<Appointment>();
-        String resultString = "no appointments";
+        GridPane times = new GridPane();
+        times.setPadding(new Insets(20,0,0,0));
+        times.setVgap(20);
+        
+        
+		ArrayList<Appointment> result_appts = new ArrayList<Appointment>();
         java.sql.Date currentDayFormatted = java.sql.Date.valueOf(currentDay.toLocalDate());
+        
         
         Connection con;
 		try {
 			con = DriverManager.getConnection(dbUrl);
-			PreparedStatement pst = con.prepareStatement("Select * FROM Appointment WHERE Appt_Date = '" + currentDayFormatted+ "'");
+			PreparedStatement pst = con.prepareStatement("Select * FROM Appointment WHERE Appt_Date = '" + currentDayFormatted+ "' ORDER BY Time");
 			ResultSet result = pst.executeQuery();  
 			while(result.next()) {
-				//result_appt.add( result.getObject(1), Appointment);
+				Appointment temp_appt = new Appointment();
+				temp_appt.setAppt_Time(((Timestamp)result.getObject(4)).toLocalDateTime().toLocalTime());
+				temp_appt.setReason(result.getString(6));
+				
+				PreparedStatement patient_st = con.prepareStatement("Select Last_Name, First_Name FROM Patient WHERE Patient_ID = " + (int) result.getObject(2));
+				ResultSet patient_result = patient_st.executeQuery();
+				if(patient_result.next()) {
+					temp_appt.setPatient_Name(patient_result.getString(1) + ", " + patient_result.getString(2));
+				}
+				
+				PreparedStatement doctor_st = con.prepareStatement("Select D_Name FROM Doctor WHERE Doctor_ID = " + (int) result.getObject(5));
+				ResultSet doctor_result = doctor_st.executeQuery();
+				if(doctor_result.next()) {
+					temp_appt.setDoctor_Name(doctor_result.getString(1));
+				}
+				
+				result_appts.add(temp_appt);
+				
+				
 			}
-        	//resultString = result_appt.get(0).toString();
+			if(!result_appts.isEmpty()) {
+				LocalTime start_time = LocalTime.of(0, 0);
+				int currentRow = 0;
+				
+				for(Appointment appt : result_appts) {
+					if(start_time != appt.getAppt_Time()) {
+						start_time = appt.getAppt_Time();
+
+				        times.addRow(currentRow, new Label(start_time.toString()));
+				        currentRow++;
+					}
+					times.addRow(currentRow, new Label(appt.getDoctor_Name() + " - " + appt.getPatient_Name() + " - Reason: " + appt.getReason()));
+					currentRow++;
+				}
+				
+        	}
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-        
-        GridPane times = new GridPane();
-        times.setPadding(new Insets(20,0,0,0));
-        times.setVgap(20);
-        times.addRow(0, new Label("Times"), new Label("Appointment"));
-        times.addRow(1, new Label("7am"), new Label(resultString));
-        times.addRow(2, new Label("8am"), new Label(resultString));
-        times.addRow(3, new Label("9am"), new Label(resultString));
-        times.addRow(4, new Label("10am"), new Label(resultString));
-        times.addRow(5, new Label("11am"), new Label(resultString));
-        times.addRow(6, new Label("12pm"), new Label(resultString));
-        times.addRow(7, new Label("1pm"), new Label(resultString));
-        times.addRow(8, new Label("2pm"), new Label(resultString));
-        times.addRow(9, new Label("3pm"), new Label(resultString));
-        times.addRow(10, new Label("4pm"), new Label(resultString));
-        times.addRow(11, new Label("5pm"), new Label(resultString));
-
         times.setStyle("-fx-font: 12px Arial");
 
         day.setCenter(times);

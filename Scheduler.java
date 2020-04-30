@@ -1,4 +1,4 @@
-package paitent_scheduler;
+package patient_scheduler;
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -93,37 +93,17 @@ public class Scheduler {
         private String getD_Password(){return D_Password;}
     }
     
-    public class Appointment{
-    	private int appointment_ID;
-    	private int patient_ID;
+    public static class Appointment{
+    	private String patient_Name;
     	private LocalDate appt_Date;
     	private LocalTime appt_Time;
-    	private int doctor_ID;
+    	private String doctor_Name;
     	private String reason;
     	
     	public Appointment() {
     		
     	}
-    	public Appointment(int app_id, int pat_id, LocalDate app_date, LocalTime app_time, int doc_id, String reason) {
-    		setAppointment_ID(app_id);
-    		setPatient_ID(pat_id);
-    		setAppt_Date(app_date);
-    		setAppt_Time(app_time);
-    		setDoctor_ID(doc_id);
-    		this.setReason(reason);
-    	}
-		public int getAppointment_ID() {
-			return appointment_ID;
-		}
-		public void setAppointment_ID(int appointment_ID) {
-			this.appointment_ID = appointment_ID;
-		}
-		public int getPatient_ID() {
-			return patient_ID;
-		}
-		public void setPatient_ID(int patient_ID) {
-			this.patient_ID = patient_ID;
-		}
+		
 		public LocalDate getAppt_Date() {
 			return appt_Date;
 		}
@@ -136,17 +116,23 @@ public class Scheduler {
 		public void setAppt_Time(LocalTime appt_Time) {
 			this.appt_Time = appt_Time;
 		}
-		public int getDoctor_ID() {
-			return doctor_ID;
-		}
-		public void setDoctor_ID(int doctor_ID) {
-			this.doctor_ID = doctor_ID;
-		}
 		public String getReason() {
 			return reason;
 		}
 		public void setReason(String reason) {
 			this.reason = reason;
+		}
+		public String getPatient_Name() {
+			return patient_Name;
+		}
+		public void setPatient_Name(String patient_Name) {
+			this.patient_Name = patient_Name;
+		}
+		public String getDoctor_Name() {
+			return doctor_Name;
+		}
+		public void setDoctor_Name(String doctor_Name) {
+			this.doctor_Name = doctor_Name;
 		}
     	
     }
