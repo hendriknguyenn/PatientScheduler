@@ -27,16 +27,23 @@ import java.sql.ResultSet;
 import java.time.LocalDateTime;
 
 public class Main extends Application {
-    private Button loginBtn, logoutBtn, addBtn, editBtn, delBtn, nextDayBtn, prevDayBtn, exitBtn;
+    private Button loginBtn, logoutBtn, addBtn, editBtn, delBtn, nextDayBtn, prevDayBtn, exitBtn, scheduleBtn, cancelBtn;
     private TextField usernameTF, pwTF, searchTF;
     final String dbUrl = "//src//SchedulerDB.accdb";
-    private Stage primaryStage;
+    private Stage primaryStage, addAppointmentWindow;
     private String sessionType, sessionUserID, currentView;
     private BorderPane home, functions, data;
-    private ToggleButton dayView, patientDBView, employeeDBView, doctorDBView, appointmentDBView;
-    private ToggleGroup viewOptions;
+    private RadioButton dayView, patientDBView, employeeDBView, doctorDBView, appointmentDBView;
+    private ToggleGroup viewOptions, dayViewAppointments;
     LocalDateTime today, currentDay;
     private Label date;
+    private static TimeSlot selected;
+
+    //for testing
+    Scheduler.Patient[] tempPatients = new Scheduler.Patient[]{new Scheduler.Patient("hendrik","nguyen","04/29/1996","123123123","714-732-3525", "Cal Poly Pomona", "hendrikn@cpp.edu"),
+    new Scheduler.Patient("john","smith","02/01/1997","123141233","714-732-3525", "UCLA", "johnsmith@pilgrims.com")};
+    String[] doctorNames = new String[]{"Jim", "John", "Joe", "Jeff"};
+    String[] jimsAppointments = new String[]{"ApptID #11",null,null,null,"ApptID #15",null,"ApptID #8",null,"ApptID #21",null};
 
 
 
@@ -94,10 +101,6 @@ public class Main extends Application {
         home.setRight(data);
     }
 
-    /**
-     * sets prevDay and nextDay buttons; calls getAppointmentData()
-     * @return
-     */
     public BorderPane createDayView(){
         BorderPane dayView = new BorderPane();
         dayView.setPrefSize(600,550);
@@ -187,15 +190,15 @@ public class Main extends Application {
         int apptHeight = 500;
         VBox col;
         HBox data = new HBox();
+        dayViewAppointments = new ToggleGroup();
+        dayViewAppointments.selectedToggleProperty().addListener(timeSlotSelection);
+        //dayViewAppointments.selectedToggleProperty().addListener();
         if(sessionType == "Doctor"){
             //get appointments for that doctor only
 
         }else{
-            //get all appointments for that day
-            //start-temp
-            String[] doctorNames = new String[]{"Jim", "John", "Joe", "Jeff"};
-            String[] jimsAppointments = new String[]{"9",null,null,null,"15",null,"8",null,"21",null};
-            //end-temp
+            //get all appointments for that day, sets ToggleButton userData
+            //for each doctor (column header)
             for(int i=0; i<doctorNames.length;i++){
                 Label doctor = new Label(doctorNames[i]);
                 doctor.setFont(Font.font("Arial", FontWeight.BOLD, 20));
@@ -204,13 +207,38 @@ public class Main extends Application {
                 header.setAlignment(Pos.CENTER);
                 col = new VBox();
                 col.getChildren().add(header);
-                Button timeslot;
+                ToggleButton timeslot;
+                //get appointments for each doctor
                 for(int j=0; j<10; j++){
-                    if(jimsAppointments[j]==null){
-                        timeslot = new Button("N/A");
+                    //get time for user data
+                    String time;
+                    if(j<5){
+                        time = (j+7) + "am";
+                    }else if(j==5){
+                        time = (j+7) + "pm";
                     }else{
-                        timeslot = new Button(jimsAppointments[j]);
+                        time = (j-5) + "pm";
                     }
+                    //temp
+                    String buttonText;
+                    if(jimsAppointments[j]==null){
+                        //empty time slot
+                        buttonText = "N/A";
+                        timeslot = new ToggleButton("N/A");
+                        timeslot.setStyle("-fx-border-style: solid inside;"+
+                                "fx-border-width: 1px;"+
+                                "fx-border-color: black;");
+                        timeslot.setToggleGroup(dayViewAppointments);
+                    }else{
+                        //taken time slot
+                        buttonText = jimsAppointments[j];
+                        timeslot = new ToggleButton(jimsAppointments[j]);
+                        timeslot.setStyle("-fx-border-style: solid inside;"+
+                                "fx-border-width: 1px;"+
+                                "fx-border-color: black;");
+                        timeslot.setToggleGroup(dayViewAppointments);
+                    }
+                    timeslot.setUserData(new TimeSlot(buttonText, currentDay.getMonth() + " " +currentDay.getDayOfMonth() + ", " + currentDay.getYear(), time,doctorNames[i]));
                     timeslot.setPrefSize(110,(apptHeight-50)/11);
                     col.getChildren().add(timeslot);
                 }
@@ -225,7 +253,6 @@ public class Main extends Application {
         return content;
     }
 
-
     public void setViewOptions(){
         functions = new BorderPane();
         functions.setPrefSize(200, 600);
@@ -237,22 +264,22 @@ public class Main extends Application {
         viewOptions = new ToggleGroup();
         Label header = new Label("View Options");
         header.setFont(Font.font("Arial", FontWeight.BOLD, FontPosture.ITALIC, 16));
-        dayView = new ToggleButton("Day View");
+        dayView = new RadioButton("Day View");
         dayView.setToggleGroup(viewOptions);
         dayView.setSelected(true);
-        dayView.setOnAction(changeView);
-        patientDBView = new ToggleButton("Patient Records");
+        dayView.setOnAction(changeViewEvent);
+        patientDBView = new RadioButton("Patient Records");
         patientDBView.setToggleGroup(viewOptions);
-        patientDBView.setOnAction(changeView);
-        employeeDBView = new ToggleButton("Employee Records");
+        patientDBView.setOnAction(changeViewEvent);
+        employeeDBView = new RadioButton("Employee Records");
         employeeDBView.setToggleGroup(viewOptions);
-        employeeDBView.setOnAction(changeView);
-        doctorDBView = new ToggleButton("Doctor Records");
+        employeeDBView.setOnAction(changeViewEvent);
+        doctorDBView = new RadioButton("Doctor Records");
         doctorDBView.setToggleGroup(viewOptions);
-        doctorDBView.setOnAction(changeView);
-        appointmentDBView = new ToggleButton("Appointment Records");
+        doctorDBView.setOnAction(changeViewEvent);
+        appointmentDBView = new RadioButton("Appointment Records");
         appointmentDBView.setToggleGroup(viewOptions);
-        appointmentDBView.setOnAction(changeView);
+        appointmentDBView.setOnAction(changeViewEvent);
         dayView.setPrefWidth(200);
         patientDBView.setPrefWidth(200);
         employeeDBView.setPrefWidth(200);
@@ -262,7 +289,7 @@ public class Main extends Application {
             view.getChildren().addAll(header, dayView, patientDBView, employeeDBView, doctorDBView, appointmentDBView);
         }else if(sessionType == "Doctor"){
             //doctor can view: dayview of their appointments, patientDB, and appointmentDB of only their appointments
-            appointmentDBView = new ToggleButton("Your Appointments");
+            appointmentDBView = new RadioButton("Your Appointments");
             view.getChildren().addAll(header, dayView, appointmentDBView, patientDBView);
         }else{
             //employee can view: dayview and all appointments
@@ -294,6 +321,7 @@ public class Main extends Application {
             if(currentView == "Day View" || currentView == "Appointment"){
                 addBtn = new Button("Add Appointment");
                 addBtn.setDisable(true);
+                addBtn.setOnAction(addAppointmentEvent);
                 editBtn = new Button("Edit Appointment");
                 editBtn.setDisable(true);
                 delBtn = new Button("Delete Appointment");
@@ -336,7 +364,6 @@ public class Main extends Application {
         data.setAlignment(Pos.CENTER);
         functions.setCenter(data);
     }
-
 
     public Scene createLoginScene(){
         Label enterLoginInfoLb = new Label("Enter Login Credentials");
@@ -418,7 +445,103 @@ public class Main extends Application {
         }
     }
 
-    EventHandler<ActionEvent> changeView = new EventHandler<ActionEvent>() {
+    /**
+     * gets appointment button selected from day view; sets add, edit, delete
+     * if N/A selected: appointment slot available (add appointment)
+     * else: appointment slot taken (edit/del appointment)
+     */
+    ChangeListener<Toggle> timeSlotSelection = (observable, oldValue, newValue) -> {
+        if(newValue == null){
+            //unselect a selected time slot
+            addBtn.setDisable(true);
+            editBtn.setDisable(true);
+            delBtn.setDisable(true);
+        }else{
+            //buttonData: 0-slotText(n/a) 1-date 2-time 3-doctorID
+            String[] buttonData = newValue.getUserData().toString().split("-");
+            selected = new TimeSlot(buttonData[0], buttonData[1], buttonData[2], buttonData[3]);
+            //empty slot selected
+            if(selected.isAvailable){
+                addBtn.setDisable(false);
+                editBtn.setDisable(true);
+                delBtn.setDisable(true);
+            }else{
+                addBtn.setDisable(true);
+                editBtn.setDisable(false);
+                delBtn.setDisable(false);
+            }
+        }
+    };
+
+    EventHandler<ActionEvent> addAppointmentEvent = new EventHandler<ActionEvent>() {
+        @Override
+        public void handle(ActionEvent event) {
+            addAppointmentWindow = new Stage();
+            addAppointmentWindow.setTitle("Appointment Scheduler");
+            GridPane addApptForm = new GridPane();
+            addApptForm.setAlignment(Pos.CENTER);
+            addApptForm.setVgap(10);
+            addApptForm.setPrefSize(350,400);
+            //Header
+            HBox header = new HBox();
+            Label heading = new Label("Appointment Information");
+            heading.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+            header.setPrefHeight(50);
+            header.getChildren().add(heading);
+            addApptForm.addRow(0,header);
+            //temp
+            //form fields: patientID, doctorID(not selectable), date, time, reason
+            //choose patient
+            Label patient = new Label("Patient: ");
+            patient.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+            //fill patient choice box with list of all patients
+            ChoiceBox<String> patientList = new ChoiceBox<>();
+            String[] listOptions = new String[tempPatients.length];
+            for(int i=0;i<listOptions.length;i++){
+                listOptions[i] = tempPatients[i].fname + tempPatients[i].lname;
+            }
+            patientList.getItems().addAll(listOptions);
+            HBox pBox = new HBox(patient, patientList);
+            addApptForm.addRow(1, pBox);
+            //get data from selected Time Slot
+            //display date
+            Label date = new Label("Date: ");
+            date.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+            Label selectedDate = new Label(selected.date);
+            selectedDate.setFont(Font.font("Arial",FontPosture.ITALIC, 16));
+            HBox dBox = new HBox(date, selectedDate);
+            dBox.setSpacing(5);
+            addApptForm.addRow(2, dBox);
+            //display time/duration
+            Label time = new Label("Time: ");
+            time.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+            Label selectedTime = new Label(selected.time);
+            selectedTime.setFont(Font.font("Arial",FontPosture.ITALIC, 16));
+            HBox tBox = new HBox(time, selectedTime);
+            tBox.setSpacing(5);
+            addApptForm.addRow(3, tBox);
+            //display doctorID
+            Label doc = new Label("Doctor: ");
+            doc.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+            Label selectedDoctor = new Label(selected.doctorID);
+            selectedDoctor.setFont(Font.font("Arial", FontPosture.ITALIC, 16));
+            HBox docBox = new HBox(doc, selectedDoctor);
+            docBox.setSpacing(5);
+            addApptForm.addRow(4, docBox);
+            scheduleBtn = new Button("Schedule");
+            cancelBtn = new Button("Cancel");
+            cancelBtn.setOnAction(event1 -> {
+                addAppointmentWindow.close();
+            });
+            HBox schedButtons = new HBox(scheduleBtn, cancelBtn);
+            schedButtons.setPrefHeight(50);
+            addApptForm.addRow(5, schedButtons);
+            addAppointmentWindow.setScene(new Scene(addApptForm));
+            addAppointmentWindow.showAndWait();
+        }
+    };
+
+    EventHandler<ActionEvent> changeViewEvent = new EventHandler<ActionEvent>() {
         @Override
         public void handle(ActionEvent event) {
             if(dayView.isSelected()){
@@ -438,6 +561,26 @@ public class Main extends Application {
             setDataOptions();
         }
     };
+
+    private class TimeSlot{
+        String date, time, doctorID, slotText;
+        boolean isAvailable;
+        private TimeSlot(String text, String d, String t, String doctor){
+            slotText = text;
+            if(slotText.equals("N/A")){
+                isAvailable = true;
+            }else{
+                isAvailable = false;
+            }
+            date = d;
+            time = t;
+            doctorID = doctor;
+        }
+        public String toString(){
+            return slotText + "-" + date + "-" + time + "-" + doctorID;
+        }
+    }
+
 
     private class LoginTextFieldListener implements ChangeListener<String> {
         @Override
