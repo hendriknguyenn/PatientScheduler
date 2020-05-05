@@ -1,50 +1,61 @@
 package patient_scheduler;
 
 import com.sun.org.apache.xml.internal.resolver.helpers.BootstrapResolver;
+import javafx.animation.*;
 import javafx.application.Application;
+import javafx.beans.binding.Binding;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.StringBinding;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontPosture;
 import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
+import javax.lang.model.element.Element;
+import java.lang.annotation.ElementType;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.concurrent.Callable;
 
 public class Main extends Application {
-    private Button loginBtn, logoutBtn, addBtn, editBtn, delBtn, nextDayBtn, prevDayBtn, exitBtn, scheduleBtn, cancelBtn;
-    private TextField usernameTF, pwTF, searchTF;
+    private Button loginBtn, logoutBtn, addBtn, editBtn, delBtn, nextDayBtn, prevDayBtn, exitBtn, scheduleBtn, cancelBtn, viewProfileBtn;
+    private TextField usernameTF, pwTF, currentPW, searchRecordTF;
     final String dbUrl = "//src//SchedulerDB.accdb";
-    private Stage primaryStage, addAppointmentWindow;
-    private String sessionType, sessionUserID, currentView;
+    private Stage primaryStage, addAppointmentWindow, userProfileWindow;
+    private String sessionType, sessionUserID, currentView, searchRecordID;
     private BorderPane home, functions, data;
     private RadioButton dayView, patientDBView, employeeDBView, doctorDBView, appointmentDBView;
-    private ToggleGroup viewOptions, dayViewAppointments;
-    LocalDateTime today, currentDay;
+    private ToggleGroup viewOptions, dayViewAppointments, dataBaseSelection;
+    private LocalDate today, currentDay;
     private Label date;
     private static TimeSlot selected;
+    private Scheduler dbAccessor;
+    private Scheduler.Patient patientSelection;
+    //temp
 
-    //for testing
-    Scheduler.Patient[] tempPatients = new Scheduler.Patient[]{new Scheduler.Patient("hendrik","nguyen","04/29/1996","123123123","714-732-3525", "Cal Poly Pomona", "hendrikn@cpp.edu"),
-    new Scheduler.Patient("john","smith","02/01/1997","123141233","714-732-3525", "UCLA", "johnsmith@pilgrims.com")};
-    String[] doctorNames = new String[]{"Jim", "John", "Joe", "Jeff"};
-    String[] jimsAppointments = new String[]{"ApptID #11",null,null,null,"ApptID #15",null,"ApptID #8",null,"ApptID #21",null};
-
+    String[] jimsAppointments = new String[]{"ApptID #11",null,null,null,"ApptID #15",null,"ApptID #8",null,"ApptID #21",null, null};
 
 
     @Override
@@ -56,13 +67,10 @@ public class Main extends Application {
         primaryStage.show();
     }
 
-    /**
-     * uses BorderPane home with home.Left = functions and home.Right = dataView
-     * @return
-     */
     public Scene createHomeScene(){
+        dbAccessor = new Scheduler();
         home = new BorderPane();
-        today = LocalDateTime.now();
+        today = LocalDate.now();
         currentDay = today;
         currentView = "Day View";
         setViewOptions();
@@ -70,13 +78,9 @@ public class Main extends Application {
         home.setLeft(functions);
         setData();
         home.setRight(data);
-
         return new Scene(home, 800, 600);
     }
 
-    /**
-     * called when switching dayview to/from records view
-     */
     public void setData(){
         data = new BorderPane();
         data.setPrefSize(600,600);
@@ -92,13 +96,141 @@ public class Main extends Application {
             dayViewHeader.setPrefSize(600, 50);
             dayViewHeader.setStyle("-fx-background-color: #f5fffa");
             data.setTop(dayViewHeader);
-            //data.setBottom(search);
             data.setCenter(createDayView());
         }else{
             //database view
-
+            data.setCenter(createDatabaseView());
         }
         home.setRight(data);
+    }
+
+    /**
+     * gets all records for specified type: patient, employee, doctor, or appointment
+     * all records for that type = dataElements
+     *  uses: getPatientRecords(), getEmployeeRecords(), getDoctorRecords() or getAppointmentRecords()
+     * all fields of current type = fields
+     *  uses: getRecordFields(String recordType)
+     *
+      * @return
+     */
+    public BorderPane createDatabaseView(){
+        BorderPane recordData = new BorderPane();
+        recordData.setPrefSize(600, 600);
+        //set header and set recordData.Center
+        Label header;
+        if(currentView == "Patient"){
+            header = new Label("Patient Records");
+            header.setPadding(new Insets(5,5,5,5));
+            Scheduler.Patient[] patientList = dbAccessor.getPatientRecords().toArray(new Scheduler.Patient[dbAccessor.getPatientRecords().size()]);
+            String[] fields = {"First_Name", "Last_Name", "Date_of_Birth", "SSN", "Phone", "Address", "Email"};
+            recordData.setCenter(buildRecordsData(patientList, fields));
+        }else if(currentView == "Employee"){
+            header = new Label("Employee Records");
+            Scheduler.Employee[] employeeList = dbAccessor.getEmployeeRecords().toArray(new Scheduler.Employee[dbAccessor.getEmployeeRecords().size()]);
+            String[] fields = {"ME_Name", "ME_Password"};
+        }else if(currentView == "Doctor"){
+            header = new Label("Doctor Records");
+        }else{
+            //for Doctor session = "Your Appointments" -> display appointments for that doctor only
+            if(appointmentDBView.getText().equals("Your Appointments")){
+                header = new Label("All Appointments for: DoctorID#: " + sessionUserID);
+            }else{
+                header = new Label("Appointment Records");
+            }
+        }
+        header.setPrefSize(600, 50);
+        header.setFont(Font.font("Arial", FontWeight.BOLD, 24));
+        header.setStyle("-fx-background-color: #d3d3d3");
+        header.setAlignment(Pos.CENTER_LEFT);
+        recordData.setTop(header);
+        //bottom: search by RecordID
+        Label search = new Label("Find by ID: ");
+        search.setFont(Font.font("Arial", FontWeight.BOLD, FontPosture.ITALIC, 16));
+        searchRecordTF = new TextField("Enter ID");
+        Button searchRecordBtn = new Button("Search");
+        searchRecordBtn.setPrefSize(100, 30);
+        searchRecordBtn.setDisable(true);
+        searchRecordTF.textProperty().addListener(new ChangeListener<String>() {
+            @Override
+            public void changed(ObservableValue<? extends String> observable, String oldValue, String newValue) {
+                searchRecordBtn.setDisable(false);
+            }
+        });
+        HBox searchBar = new HBox();
+        searchBar.getChildren().addAll(search, searchRecordTF, searchRecordBtn);
+        searchBar.setSpacing(4);
+        searchBar.setPadding(new Insets(0, 0,0,10));
+        searchBar.setAlignment(Pos.CENTER_LEFT);
+        recordData.setBottom(searchBar);
+        return recordData;
+    }
+
+    /**
+     *
+      * @param list list of record Objects
+     * @param fields fields of passed Object
+     * @return ScrollPane records
+     */
+    public ScrollPane buildRecordsData(Object[] list, String[] fields){
+        GridPane records = new GridPane();
+        records.setPrefHeight(550);
+        records.setGridLinesVisible(true);
+        dataBaseSelection = new ToggleGroup();
+        dataBaseSelection.selectedToggleProperty().addListener(new ChangeListener<Toggle>() {
+            @Override
+            public void changed(ObservableValue<? extends Toggle> observable, Toggle oldValue, Toggle newValue) {
+                if(newValue == null){
+                    addBtn.setDisable(false);
+                    editBtn.setDisable(true);
+                    delBtn.setDisable(true);
+                }else{
+                    addBtn.setDisable(true);
+                    editBtn.setDisable(false);
+                    delBtn.setDisable(false);
+                    //getUserData is a string[], may need to change to ID
+                }
+            }
+        });
+        ToggleButton rowSelector;
+        //first row: field headers
+        Label[] val = new Label[fields.length+1];
+        Label spaceForRadioButtons = new Label(" ");
+        val[0] = spaceForRadioButtons;
+        for(int i=0;i<fields.length;i++){
+            Label temp = new Label(fields[i]);
+            temp.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+            temp.setMinWidth(Region.USE_PREF_SIZE);
+            temp.setPadding(new Insets(4,4,4,4));
+            temp.setAlignment(Pos.CENTER);
+            val[i+1] = temp;
+        }
+        records.addRow(0, val);
+        //fill record data
+        String[] rowData;
+        for(int i=0;i<list.length;i++){
+            val = new Label[fields.length+1];
+            rowData = list[i].toString().split("--");
+            for(int j=0;j<rowData.length;j++){
+                Label value = new Label(rowData[j]);
+                value.setFont(Font.font("Arial", 14));
+                value.setMinWidth(Region.USE_PREF_SIZE);
+                value.setPadding(new Insets(4,4,4,4));
+                value.setAlignment(Pos.CENTER);
+                records.add(value, j+1, i+1);
+            }
+            rowSelector = new ToggleButton("Edit");
+            rowSelector.setUserData(val);
+            rowSelector.setToggleGroup(dataBaseSelection);
+
+            if(sessionType == "Receptionist") {
+                records.add(rowSelector, 0, i + 1);
+            }
+        }
+        ScrollPane recordData = new ScrollPane();
+        recordData.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        recordData.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        recordData.setContent(records);
+        return recordData;
     }
 
     public BorderPane createDayView(){
@@ -109,12 +241,29 @@ public class Main extends Application {
         searchBar.setAlignment(Pos.CENTER_LEFT);
         searchBar.setStyle("-fx-padding: 5;" +
                 "-fx-background-color: DAE6F3;");
-        Label search = new Label("Search: ");
+        Label search = new Label("Find Date: ");
         search.setFont(Font.font("Arial",FontWeight.BOLD,FontPosture.ITALIC,16));
-        searchTF = new TextField();
+        DatePicker searchDate = new DatePicker();
         Button searchBtn = new Button("Search");
-        Label searchFormat = new Label("[mm-dd-yyyy]");
-        searchBar.getChildren().addAll(search, searchTF, searchFormat,searchBtn);
+        searchBtn.setOnAction(event -> {
+            //selected day
+            if (today.equals(searchDate.getValue()) || searchDate.getValue() == null) {
+                prevDayBtn.setDisable(true);
+            }else if(searchDate.getValue().isBefore(today)){
+                Alert oldDateSelection = new Alert(Alert.AlertType.ERROR);
+                oldDateSelection.setHeaderText("Invalid Date Search");
+                oldDateSelection.setContentText("Cannot view past schedules");
+                oldDateSelection.showAndWait();
+                searchDate.setValue(currentDay);
+                data.setCenter(createDayView());
+            }
+            else {
+                currentDay = searchDate.getValue();
+                date.setText(currentDay.getMonth().toString() + " " + currentDay.getDayOfMonth() + ", " + currentDay.getYear());
+                data.setCenter(createDayView());
+            }
+        });
+        searchBar.getChildren().addAll(search, searchDate,searchBtn);
         searchBar.setSpacing(2);
         dayView.setTop(searchBar);
         //right: nextDayBtn
@@ -146,10 +295,14 @@ public class Main extends Application {
         dayView.setLeft(box);
         //center: dayview appointment data
         dayView.setCenter(getAppointmentData());
-
         return dayView;
     }
 
+    /**
+     * sets timeStamps and formatting for appointment layout in DayView
+     *  calls fillAppointmentData() to fill with dbAccessor data
+     * @return BorderPane appointmentData for dayView.setCenter() in createDayView()
+     */
     public BorderPane getAppointmentData(){
         BorderPane appointmentData = new BorderPane();
         int apptHeight = 500;
@@ -164,14 +317,14 @@ public class Main extends Application {
         slot.setPrefSize(20, 50);
         slot.setAlignment(Pos.CENTER);
         times.getChildren().add(slot);
-        for(int i=7; i<17; i++){
+        for(int i=7; i<18; i++){
             String timestamp;
             if(i < 12){
                 timestamp = i + "am";
             }else if(i==12){
                 timestamp = i +"pm";
             }else{
-                timestamp = (i-11) + "pm";
+                timestamp = (i-12) + "pm";
             }
             Label t = new Label(timestamp);
             t.setFont(Font.font("Arial", FontWeight.BOLD, 14));
@@ -181,78 +334,152 @@ public class Main extends Application {
             times.getChildren().add(slot);
         }
         appointmentData.setLeft(times);
-        appointmentData.setCenter(fillAppointmentData());
+        if(sessionType == "Receptionist") {
+            appointmentData.setCenter(fillAppointmentData());
+        }else{
+            appointmentData.setCenter(fillDoctorAppointmentData());
+        }
         return appointmentData;
     }
 
+    public ScrollPane fillDoctorAppointmentData(){
+        //temp
+        Scheduler.Doctor[] doctorList = dbAccessor.getDoctorRecords().toArray(new Scheduler.Doctor[dbAccessor.getDoctorRecords().size()]);
+        Label timeslot;
+        ScrollPane content = new ScrollPane();
+        int apptHeight = 500;
+        VBox col;
+        HBox data = new HBox();
+        for(int i=0; i<doctorList.length;i++){
+            //doctor label = doctorID
+            String dID = Integer.toString(doctorList[i].getId());
+            Label doctor = new Label(dID);
+            doctor.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+            HBox header = new HBox(doctor);
+            header.setPrefSize(50, 50);
+            header.setAlignment(Pos.CENTER);
+            col = new VBox();
+            col.getChildren().add(header);
+            //get appointments for each doctor
+            ///Scheduler.Appointment[] dayApptsOfDoctor = dbAccessor.getAppointments(currentDay, Integer.parseInt(dID)).toArray(new Scheduler.Appointment[dbAccessor.getAppointments(currentDay, Integer.parseInt(dID)).size()]);
+            for(int j=0; j<11; j++){
+                //get time for user data
+                String time;
+                if(j<5){
+                    time = (j+7) + "am";
+                }else if(j==5){
+                    time = (j+7) + "pm";
+                }else{
+                    time = (j-5) + "pm";
+                }
+                //set timeslot toggle buttons for current doctor/column; buttonText = N/A for empty slot, ApptID#: ## for taken slot
+                String labelText;
+                if(jimsAppointments[j] == null){
+                    //if(dayApptsOfDoctor[j]==null){
+                    //empty time slot
+                    labelText = "N/A";
+                    timeslot = new Label("N/A");
+                    timeslot.setStyle("-fx-border-style: solid inside;"+
+                            "fx-border-width: 1px;"+
+                            "fx-border-color: black;");
+                }else{
+                    //taken time slot
+                    labelText = jimsAppointments[j];
+                }
+                timeslot = new Label(labelText);
+                timeslot.setStyle("-fx-border-style: solid inside;"+
+                        "fx-border-width: 1px;"+
+                        "fx-border-color: black;");
+                timeslot.setPadding(new Insets(2, 2, 2,2));
+                timeslot.setPrefSize(110,(apptHeight-50)/11);
+                col.getChildren().add(timeslot);
+            }
+            data.getChildren().add(col);
+        }
+        content.setContent(data);
+        content.setHbarPolicy(ScrollPane.ScrollBarPolicy.ALWAYS);
+        content.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        return content;
+    }
+
+    /**
+     * for Receptionist session only
+     * Uses currentDay to get appointments for that day
+     * nested for loop: i= each doctor(col) j= each timeslot(row, 10 loops for 10 timeslots per day
+     * @return ScrollPane of AppointmentData
+     */
     public ScrollPane fillAppointmentData(){
+        dayViewAppointments = new ToggleGroup();
+        dayViewAppointments.selectedToggleProperty().addListener(timeSlotSelection);
+        //temp
+        Scheduler.Doctor[] doctorList = dbAccessor.getDoctorRecords().toArray(new Scheduler.Doctor[dbAccessor.getDoctorRecords().size()]);
+        ToggleButton timeslot;
         ScrollPane content = new ScrollPane();
         int apptHeight = 500;
         VBox col;
         HBox data = new HBox();
         dayViewAppointments = new ToggleGroup();
         dayViewAppointments.selectedToggleProperty().addListener(timeSlotSelection);
-        //dayViewAppointments.selectedToggleProperty().addListener();
-        if(sessionType == "Doctor"){
-            //get appointments for that doctor only
-
-        }else{
-            //get all appointments for that day, sets ToggleButton userData
-            //for each doctor (column header)
-            for(int i=0; i<doctorNames.length;i++){
-                Label doctor = new Label(doctorNames[i]);
-                doctor.setFont(Font.font("Arial", FontWeight.BOLD, 20));
-                HBox header = new HBox(doctor);
-                header.setPrefSize(50, 50);
-                header.setAlignment(Pos.CENTER);
-                col = new VBox();
-                col.getChildren().add(header);
-                ToggleButton timeslot;
-                //get appointments for each doctor
-                for(int j=0; j<10; j++){
-                    //get time for user data
-                    String time;
-                    if(j<5){
-                        time = (j+7) + "am";
-                    }else if(j==5){
-                        time = (j+7) + "pm";
-                    }else{
-                        time = (j-5) + "pm";
-                    }
-                    //temp
-                    String buttonText;
-                    if(jimsAppointments[j]==null){
-                        //empty time slot
-                        buttonText = "N/A";
-                        timeslot = new ToggleButton("N/A");
-                        timeslot.setStyle("-fx-border-style: solid inside;"+
-                                "fx-border-width: 1px;"+
-                                "fx-border-color: black;");
-                        timeslot.setToggleGroup(dayViewAppointments);
-                    }else{
-                        //taken time slot
-                        buttonText = jimsAppointments[j];
-                        timeslot = new ToggleButton(jimsAppointments[j]);
-                        timeslot.setStyle("-fx-border-style: solid inside;"+
-                                "fx-border-width: 1px;"+
-                                "fx-border-color: black;");
-                        timeslot.setToggleGroup(dayViewAppointments);
-                    }
-                    timeslot.setUserData(new TimeSlot(buttonText, currentDay.getMonth() + " " +currentDay.getDayOfMonth() + ", " + currentDay.getYear(), time,doctorNames[i]));
-                    timeslot.setPrefSize(110,(apptHeight-50)/11);
-                    col.getChildren().add(timeslot);
+        for(int i=0; i<doctorList.length;i++){
+            //doctor label = doctorID
+            String dID = Integer.toString(doctorList[i].getId());
+            Label doctor = new Label(dID);
+            doctor.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+            HBox header = new HBox(doctor);
+            header.setPrefSize(50, 50);
+            header.setAlignment(Pos.CENTER);
+            col = new VBox();
+            col.getChildren().add(header);
+            //get appointments for each doctor
+            ///Scheduler.Appointment[] dayApptsOfDoctor = dbAccessor.getAppointments(currentDay, Integer.parseInt(dID)).toArray(new Scheduler.Appointment[dbAccessor.getAppointments(currentDay, Integer.parseInt(dID)).size()]);
+            for(int j=0; j<11; j++){
+                //get time for user data
+                String time;
+                if(j<5){
+                    time = (j+7) + "am";
+                }else if(j==5){
+                    time = (j+7) + "pm";
+                }else{
+                    time = (j-5) + "pm";
                 }
-                data.getChildren().add(col);
+                //set timeslot toggle buttons for current doctor/column; buttonText = N/A for empty slot, ApptID#: ## for taken slot
+                String buttonText;
+                System.out.println(jimsAppointments[j]);
+                if(jimsAppointments[j] == null){
+                //if(dayApptsOfDoctor[j]==null){
+                    //empty time slot
+                    buttonText = "N/A";
+                    timeslot = new ToggleButton("N/A");
+                    timeslot.setStyle("-fx-border-style: solid inside;"+
+                            "fx-border-width: 1px;"+
+                            "fx-border-color: black;");
+                    timeslot.setToggleGroup(dayViewAppointments);
+                }else{
+                    //taken time slot
+                    buttonText = jimsAppointments[j];
+                    //buttonText = "ApptID#: " + dayApptsOfDoctor[j].getId();
+                    timeslot = new ToggleButton(buttonText);
+                    timeslot.setStyle("-fx-border-style: solid inside;"+
+                            "fx-border-width: 1px;"+
+                            "fx-border-color: black;");
+                    timeslot.setToggleGroup(dayViewAppointments);
+                }
+                //userData: buttonText (availability), date, time, dID)
+                timeslot.setUserData(new TimeSlot(buttonText, currentDay.getMonth() + " " +currentDay.getDayOfMonth() + ", " + currentDay.getYear(), time, dID));
+                timeslot.setPrefSize(110,(apptHeight-50)/11);
+                col.getChildren().add(timeslot);
             }
-            content.setContent(data);
-            content.setHbarPolicy(ScrollPane.ScrollBarPolicy.ALWAYS);
-            content.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-
+            data.getChildren().add(col);
         }
-
+        content.setContent(data);
+        content.setHbarPolicy(ScrollPane.ScrollBarPolicy.ALWAYS);
+        content.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         return content;
     }
 
+    /**
+     * sets ViewOptions(top) and Bottom: logout, exit, viewProfile
+     */
     public void setViewOptions(){
         functions = new BorderPane();
         functions.setPrefSize(200, 600);
@@ -290,6 +517,9 @@ public class Main extends Application {
         }else if(sessionType == "Doctor"){
             //doctor can view: dayview of their appointments, patientDB, and appointmentDB of only their appointments
             appointmentDBView = new RadioButton("Your Appointments");
+            appointmentDBView.setPrefWidth(200);
+            appointmentDBView.setOnAction(changeViewEvent);
+            appointmentDBView.setToggleGroup(viewOptions);
             view.getChildren().addAll(header, dayView, appointmentDBView, patientDBView);
         }else{
             //employee can view: dayview and all appointments
@@ -297,7 +527,10 @@ public class Main extends Application {
         }
         view.setAlignment(Pos.TOP_CENTER);
         functions.setTop(view);
-        //set bottom: logout + exit program
+        //set bottom: logout + exit program + view Profile
+        viewProfileBtn = new Button("View Profile");
+        viewProfileBtn.setPrefWidth(200);
+        viewProfileBtn.setOnAction(viewProfileEvent);
         logoutBtn = new Button("Log Out");
         logoutBtn.setPrefWidth(200);
         logoutBtn.setOnAction(event -> {
@@ -308,7 +541,34 @@ public class Main extends Application {
         exitBtn.setOnAction(event -> {
             primaryStage.close();
         });
-        VBox bottom = new VBox(logoutBtn,exitBtn);
+        VBox bottom;
+        if(sessionType == "Receptionist"){
+            Button reminderBtn = new Button("Appt. Reminders");
+            reminderBtn.setPrefWidth(200);
+            final Color startColor = Color.web("#e08090");
+            final Color endColor = Color.web("#80e090");
+            final ObjectProperty<Color> color = new SimpleObjectProperty<Color>(startColor);
+            final StringBinding flash = Bindings.createStringBinding(new Callable<String>() {
+                @Override
+                public String call() throws Exception {
+                    return String.format("-fx-body-color: rgb(%d, %d, %d);",
+                            (int) (256*color.get().getRed()),
+                            (int) (256*color.get().getGreen()),
+                            (int) (256*color.get().getBlue()));
+                }
+            }, color);
+                    reminderBtn.styleProperty().bind(flash);
+            final Timeline timeline = new Timeline(
+                    new KeyFrame(Duration.ZERO, new KeyValue(color, startColor)),
+                    new KeyFrame(Duration.seconds(1), new KeyValue(color, endColor)));
+            reminderBtn.setOnAction(event -> {
+                timeline.play();
+            });
+            //get appointments for the next day: today + 1
+            bottom = new VBox(reminderBtn,viewProfileBtn,logoutBtn,exitBtn);
+        }else{
+            bottom = new VBox(viewProfileBtn,logoutBtn,exitBtn);
+        }
         functions.setBottom(bottom);
     }
 
@@ -318,52 +578,64 @@ public class Main extends Application {
         Label header = new Label("Data Options");
         header.setFont(Font.font("Arial", FontWeight.BOLD, FontPosture.ITALIC, 16));
         if(sessionType == "Receptionist"){
-            if(currentView == "Day View" || currentView == "Appointment"){
+            data.getChildren().add(header);
+            if(currentView == "Day View"){
                 addBtn = new Button("Add Appointment");
                 addBtn.setDisable(true);
                 addBtn.setOnAction(addAppointmentEvent);
-                editBtn = new Button("Edit Appointment");
-                editBtn.setDisable(true);
                 delBtn = new Button("Delete Appointment");
                 delBtn.setDisable(true);
-                data.getChildren().addAll(header, addBtn, editBtn, delBtn);
+                addBtn.setPrefWidth(200);
+                delBtn.setPrefWidth(200);
+                data.getChildren().addAll(addBtn, delBtn);
+            }else if(currentView == "Appointment"){
+                delBtn = new Button("Delete Appointment");
+                delBtn.setPrefWidth(200);
+                delBtn.setDisable(true);
+                data.getChildren().add(delBtn);
             }else if(currentView == "Doctor"){
                 addBtn = new Button("Add Doctor");
-                addBtn.setDisable(true);
-                editBtn = new Button("Edit Doctor");
-                editBtn.setDisable(true);
+                addBtn.setDisable(false);
                 delBtn = new Button("Delete Doctor");
                 delBtn.setDisable(true);
-                data.getChildren().addAll(header, addBtn, editBtn, delBtn);
+                addBtn.setPrefWidth(200);
+                delBtn.setPrefWidth(200);
+                data.getChildren().addAll(addBtn, delBtn);
             }else if(currentView == "Employee"){
                 addBtn = new Button("Add Employee");
-                addBtn.setDisable(true);
-                editBtn = new Button("Edit Employee");
-                editBtn.setDisable(true);
+                addBtn.setDisable(false);
                 delBtn = new Button("Delete Employee");
                 delBtn.setDisable(true);
-                data.getChildren().addAll(header, addBtn, editBtn, delBtn);
+                addBtn.setPrefWidth(200);
+                delBtn.setPrefWidth(200);
+                data.getChildren().addAll(addBtn, delBtn);
             }else{
                 addBtn = new Button("Add Patient");
-                addBtn.setDisable(true);
+                addBtn.setDisable(false);
                 editBtn = new Button("Edit Patient");
                 editBtn.setDisable(true);
                 delBtn = new Button("Delete Patient");
                 delBtn.setDisable(true);
-                data.getChildren().addAll(header, addBtn, editBtn, delBtn);
+                addBtn.setPrefWidth(200);
+                editBtn.setPrefWidth(200);
+                delBtn.setPrefWidth(200);
+                data.getChildren().addAll(addBtn, editBtn, delBtn);
             }
-            addBtn.setPrefWidth(200);
-            editBtn.setPrefWidth(200);
-            delBtn.setPrefWidth(200);
-        }else if(sessionType == "Doctor"){
-
-
-        }else{
-
+            delBtn.setOnAction(event -> {
+                if(currentView == "Day View" || currentView == "Appointment"){
+                    // deleteAppointmentRecord
+                }else if(currentView == "Patient"){
+                    // deletePatientRecord
+                }else{
+                    // deleteEmployee
+                }
+            });
         }
         data.setAlignment(Pos.CENTER);
         functions.setCenter(data);
     }
+
+
 
     public Scene createLoginScene(){
         Label enterLoginInfoLb = new Label("Enter Login Credentials");
@@ -391,6 +663,7 @@ public class Main extends Application {
         //loginBtn.setOnAction(e -> handle(accountTypeDrop));
         loginBtn.setOnAction(event -> {
             sessionType = "Receptionist";
+            sessionUserID = "01";
             primaryStage.setScene(createHomeScene());
         });
         return new Scene(vbLogin, 475, 375);
@@ -446,15 +719,13 @@ public class Main extends Application {
     }
 
     /**
-     * gets appointment button selected from day view; sets add, edit, delete
-     * if N/A selected: appointment slot available (add appointment)
-     * else: appointment slot taken (edit/del appointment)
+     * gets selected timeslot from DayView and set reference selected
+     * disables/enables add, edit, delete Buttons
      */
     ChangeListener<Toggle> timeSlotSelection = (observable, oldValue, newValue) -> {
         if(newValue == null){
             //unselect a selected time slot
             addBtn.setDisable(true);
-            editBtn.setDisable(true);
             delBtn.setDisable(true);
         }else{
             //buttonData: 0-slotText(n/a) 1-date 2-time 3-doctorID
@@ -463,81 +734,150 @@ public class Main extends Application {
             //empty slot selected
             if(selected.isAvailable){
                 addBtn.setDisable(false);
-                editBtn.setDisable(true);
                 delBtn.setDisable(true);
             }else{
                 addBtn.setDisable(true);
-                editBtn.setDisable(false);
                 delBtn.setDisable(false);
             }
         }
     };
 
+    public void disablePrimary(){
+        functions.setDisable(true);
+        data.setDisable(true);
+    }
+    public void enablePrimary(){
+        functions.setDisable(false);
+        data.setDisable(false);
+    }
+
+    /**
+     * creates addAppointmentWindow for entering appointment details when scheduling
+     * Scheduler.java: addAppointmentRecord
+     */
     EventHandler<ActionEvent> addAppointmentEvent = new EventHandler<ActionEvent>() {
         @Override
         public void handle(ActionEvent event) {
-            addAppointmentWindow = new Stage();
-            addAppointmentWindow.setTitle("Appointment Scheduler");
-            GridPane addApptForm = new GridPane();
-            addApptForm.setAlignment(Pos.CENTER);
-            addApptForm.setVgap(10);
-            addApptForm.setPrefSize(350,400);
-            //Header
-            HBox header = new HBox();
-            Label heading = new Label("Appointment Information");
-            heading.setFont(Font.font("Arial", FontWeight.BOLD, 20));
-            header.setPrefHeight(50);
-            header.getChildren().add(heading);
-            addApptForm.addRow(0,header);
-            //temp
-            //form fields: patientID, doctorID(not selectable), date, time, reason
-            //choose patient
-            Label patient = new Label("Patient: ");
-            patient.setFont(Font.font("Arial", FontWeight.BOLD, 18));
-            //fill patient choice box with list of all patients
-            ChoiceBox<String> patientList = new ChoiceBox<>();
-            String[] listOptions = new String[tempPatients.length];
-            for(int i=0;i<listOptions.length;i++){
-                listOptions[i] = tempPatients[i].fname + tempPatients[i].lname;
+            //disable primaryStage components
+            disablePrimary();
+            Alert invalid = new Alert(Alert.AlertType.ERROR);
+            invalid.setHeaderText("Invalid Appointment Date");
+            if(currentDay.isBefore(today)){
+                invalid.setContentText("Can only schedule a future appointment");
+                invalid.showAndWait();
+            }else if(currentDay.isEqual(today)){
+                //appointments on same day must be made at least 2 hours before appointment time
+                int selectedHour = Integer.parseInt(selected.time.substring(0, selected.time.length()-2));
+                if(selectedHour >= 1 && selectedHour <= 5){
+                    selectedHour += 12;
+                }
+                int currentHour = LocalTime.now().getHour();
+                //display alert if current hour is 2 hours greater than selected hour
+                if(currentHour > selectedHour+2){
+                    invalid.setContentText("Appointments must be scheduled at least 2 hours prior");
+                    invalid.showAndWait();
+                }
+            }else {
+                addAppointmentWindow = new Stage();
+                addAppointmentWindow.setTitle("Appointment Scheduler");
+                GridPane addApptForm = new GridPane();
+                addApptForm.setAlignment(Pos.CENTER);
+                addApptForm.setVgap(10);
+                addApptForm.setPrefSize(350, 450);
+                //Header
+                HBox header = new HBox();
+                Label heading = new Label("Appointment Information");
+                heading.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+                header.setPrefHeight(50);
+                header.getChildren().add(heading);
+                addApptForm.addRow(0, header);
+                //temp
+                //form fields: patientID, doctorID(not selectable), date, time, reason
+                //choose patient
+                Label patient = new Label("Patient: ");
+                patient.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+                TextField searchPatientTF = new TextField("Enter Patient ID");
+                searchPatientTF.textProperty().addListener(new ChangeListener<String>() {
+                    @Override
+                    public void changed(ObservableValue<? extends String> observable, String oldValue, String newValue) {
+                        if(newValue.trim().isEmpty()){
+                            scheduleBtn.setDisable(true);
+                        }else{
+                            scheduleBtn.setDisable(false);
+                        }
+                    }
+                });
+                //create search bar for patient
+                HBox pBox = new HBox(patient, searchPatientTF);
+                addApptForm.addRow(1, pBox);
+                //get data from selected Time Slot
+                //display date
+                Label date = new Label("Date: ");
+                date.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+                Label selectedDate = new Label(selected.date);
+                selectedDate.setFont(Font.font("Arial", FontPosture.ITALIC, 12));
+                HBox dBox = new HBox(date, selectedDate);
+                dBox.setSpacing(5);
+                addApptForm.addRow(2, dBox);
+                //display time/duration
+                Label time = new Label("Time: ");
+                time.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+                Label selectedTime = new Label(selected.time);
+                selectedTime.setFont(Font.font("Arial", FontPosture.ITALIC, 12));
+                HBox tBox = new HBox(time, selectedTime);
+                tBox.setSpacing(5);
+                addApptForm.addRow(3, tBox);
+                //display doctorID
+                Label doc = new Label("Doctor: ");
+                doc.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+                Label selectedDoctor = new Label(selected.doctorID);
+                selectedDoctor.setFont(Font.font("Arial", FontPosture.ITALIC, 12));
+                HBox docBox = new HBox(doc, selectedDoctor);
+                docBox.setSpacing(5);
+                addApptForm.addRow(4, docBox);
+                Label reason = new Label("Appointment Reason (Optional)");
+                reason.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+                TextField reasonTF = new TextField();
+                reasonTF.setPrefSize(300,100);
+                reasonTF.positionCaret(0);
+                addApptForm.addRow(5, reason);
+                addApptForm.addRow(6, reasonTF);
+                scheduleBtn = new Button("Schedule");
+                scheduleBtn.setPrefWidth(100);
+                scheduleBtn.setDisable(true);
+                //get inputted patientID from searchPatientTF
+                scheduleBtn.setOnAction(event1 -> {
+                    patientSelection = dbAccessor.getPatient(Integer.parseInt(searchPatientTF.getText()));
+                    System.out.println(patientSelection);
+                });
+                cancelBtn = new Button("Cancel");
+                cancelBtn.setPrefWidth(100);
+                cancelBtn.setOnAction(event1 -> {
+                    addAppointmentWindow.close();
+                });
+                HBox schedButtons = new HBox(scheduleBtn, cancelBtn);
+                schedButtons.setPrefHeight(50);
+                schedButtons.setAlignment(Pos.CENTER);
+                addApptForm.addRow(7, schedButtons);
+                addAppointmentWindow.setScene(new Scene(addApptForm));
+                addAppointmentWindow.setAlwaysOnTop(true);
+                addAppointmentWindow.showAndWait();
+                enablePrimary();
             }
-            patientList.getItems().addAll(listOptions);
-            HBox pBox = new HBox(patient, patientList);
-            addApptForm.addRow(1, pBox);
-            //get data from selected Time Slot
-            //display date
-            Label date = new Label("Date: ");
-            date.setFont(Font.font("Arial", FontWeight.BOLD, 18));
-            Label selectedDate = new Label(selected.date);
-            selectedDate.setFont(Font.font("Arial",FontPosture.ITALIC, 16));
-            HBox dBox = new HBox(date, selectedDate);
-            dBox.setSpacing(5);
-            addApptForm.addRow(2, dBox);
-            //display time/duration
-            Label time = new Label("Time: ");
-            time.setFont(Font.font("Arial", FontWeight.BOLD, 18));
-            Label selectedTime = new Label(selected.time);
-            selectedTime.setFont(Font.font("Arial",FontPosture.ITALIC, 16));
-            HBox tBox = new HBox(time, selectedTime);
-            tBox.setSpacing(5);
-            addApptForm.addRow(3, tBox);
-            //display doctorID
-            Label doc = new Label("Doctor: ");
-            doc.setFont(Font.font("Arial", FontWeight.BOLD, 18));
-            Label selectedDoctor = new Label(selected.doctorID);
-            selectedDoctor.setFont(Font.font("Arial", FontPosture.ITALIC, 16));
-            HBox docBox = new HBox(doc, selectedDoctor);
-            docBox.setSpacing(5);
-            addApptForm.addRow(4, docBox);
-            scheduleBtn = new Button("Schedule");
-            cancelBtn = new Button("Cancel");
-            cancelBtn.setOnAction(event1 -> {
-                addAppointmentWindow.close();
-            });
-            HBox schedButtons = new HBox(scheduleBtn, cancelBtn);
-            schedButtons.setPrefHeight(50);
-            addApptForm.addRow(5, schedButtons);
-            addAppointmentWindow.setScene(new Scene(addApptForm));
-            addAppointmentWindow.showAndWait();
+        }
+    };
+
+    EventHandler<ActionEvent> displaySearchResultEvent = new EventHandler<ActionEvent>() {
+        @Override
+        public void handle(ActionEvent event) {
+            Label header = new Label("Profile: ");
+            header.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+            //if Patient, allow editting if Receptionist
+            if(currentView == "Patient"){
+
+            }else{
+
+            }
         }
     };
 
@@ -559,6 +899,63 @@ public class Main extends Application {
                 dayView.setSelected(true);
             }
             setDataOptions();
+            setData();
+        }
+    };
+
+    //needs getEmployeeInfo(String ID)
+    //needs getEmployeeFields()
+    EventHandler<ActionEvent> viewProfileEvent = new EventHandler<ActionEvent>() {
+        @Override
+        public void handle(ActionEvent event) {
+            disablePrimary();
+            userProfileWindow = new Stage();
+            userProfileWindow.setTitle("Your Profile");
+            userProfileWindow.setResizable(false);
+            GridPane profile = new GridPane();
+            profile.setAlignment(Pos.CENTER);
+            profile.setPadding(new Insets(10,10,10,10));
+            profile.setPrefSize(350, 400);
+            profile.setHgap(5);
+            profile.setVgap(20);
+            Label header = new Label("Profile: ");
+            header.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+            header.setPrefHeight(50);
+            Label userHeading = new Label("[Employee's Name]");
+            userHeading.setPrefHeight(50);
+            userHeading.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+            profile.addRow(0, header, userHeading);
+            Label username = new Label("Employee ID: ");
+            username.setFont(Font.font("Arial", FontWeight.BOLD, 16));
+            Label currentUN = new Label("[current ID]");
+            currentUN.setFont(Font.font("Arial", FontWeight.BOLD, FontPosture.ITALIC, 16));
+            userHeading.setFont(Font.font(14));
+            profile.addRow(1, username, currentUN);
+            Label pw = new Label("Password: ");
+            pw.setFont(Font.font("Arial", FontWeight.BOLD, 16));
+            currentPW = new TextField("[current password]");
+            Button update = new Button("Update");
+            currentPW.textProperty().addListener(new ChangeListener<String>() {
+                @Override
+                public void changed(ObservableValue<? extends String> observable, String oldValue, String newValue) {
+                    update.setDisable(false);
+                }
+            });
+            profile.addRow(2, pw, currentPW);
+            Button cancel = new Button("Exit");
+            cancel.setPrefWidth(75);
+            cancel.setOnAction(event1 -> {
+                userProfileWindow.close();
+                userProfileWindow = new Stage();
+            });
+            update.setPrefWidth(75);
+            update.setDisable(true);
+            profile.addRow(3, cancel, update);
+            //need to fill with real values
+            userProfileWindow.setScene(new Scene(profile));
+            userProfileWindow.setAlwaysOnTop(true);
+            userProfileWindow.showAndWait();
+            enablePrimary();
         }
     };
 
