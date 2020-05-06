@@ -394,6 +394,82 @@ public class Scheduler {
         return result_records;
     }
 
+    
+    // Searches 
+    
+    public ArrayList<Patient> searchPatientRecords(String name){
+    	ArrayList<Patient> result_records = new ArrayList<Patient>();
+    	// search first & last names for string
+    	 try {
+             PreparedStatement pst = c.prepareStatement("Select * FROM Patient WHERE First_Name LIKE '%" + name + "%' OR Last_Name LIKE '%" + name + "%' ");
+             ResultSet result = pst.executeQuery();
+             while(result.next()) {
+                 Patient temp_patient = new Patient(
+                         result.getInt(1),
+                         result.getString(2),
+                         result.getString(3),
+                         result.getString(4),
+                         result.getString(5),
+                         result.getString(6),
+                         result.getString(7),
+                         result.getString(8)
+                 );
+                 result_records.add(temp_patient);
+             }
+         } catch (SQLException e) {
+             // TODO Auto-generated catch block
+             e.printStackTrace();
+         }
+    	return result_records;
+    }
+    
+    public ArrayList<Doctor> searchDoctorRecords(String name){
+    	ArrayList<Doctor> result_records = new ArrayList<Doctor>();
+    	// search name for string
+        try {
+            PreparedStatement pst = c.prepareStatement("Select * FROM Doctor WHERE D_Name LIKE '%" + name + "%'");
+            ResultSet result = pst.executeQuery();
+            while(result.next()) {
+                Doctor temp_doctor = new Doctor(
+                        result.getInt(1),
+                        result.getString(2),
+                        result.getString(3),
+                        result.getString(4)
+                );
+                result_records.add(temp_doctor);
+            }
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    	return result_records;
+    }
+    
+    public ArrayList<Employee> searchEmployeeRecords(String name){
+    	ArrayList<Employee> result_records = new ArrayList<Employee>();
+    	// search name for string
+        try {
+            PreparedStatement pst = c.prepareStatement("Select * FROM MedicalEmployee WHERE ME_Name LIKE '%" + name + "%'");
+            ResultSet result = pst.executeQuery();
+            while(result.next()) {
+                Doctor temp_doctor = new Doctor(
+                        result.getInt(1),
+                        result.getString(2),
+                        result.getString(3),
+                        result.getString(4)
+                );
+                result_records.add(temp_doctor);
+            }
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    	return result_records;
+    }
+    
+    
+    
+    // Classes
 
     public static class Patient{
         private int id;
