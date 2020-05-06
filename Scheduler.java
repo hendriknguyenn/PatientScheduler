@@ -84,6 +84,22 @@ public class Scheduler {
 
     }
     
+    public void createAppointment(Appointment appointment) {
+    	String query = "INSERT INTO Appointment (Patient_ID, Appt_Date, Time, Doctor_ID, Reason) VALUE (?,?,?,?,?)";
+    	try(PreparedStatement statement = c.prepareStatement(query)){
+            statement.setInt(1, appointment.getPatient_Id());
+            statement.setDate(2, Date.valueOf(appointment.getAppt_Date()));
+            statement.setTime(3, Time.valueOf(appointment.getAppt_Time()));
+            statement.setInt(4, appointment.getDoctor_Id());
+            statement.setString(5, appointment.getReason());
+            statement.executeUpdate();
+            System.out.println("New Appointment Created");
+        }catch(SQLException ex){
+            System.out.println("Not Able to Create New Appointment");
+        }
+    }
+    
+    
     
     //Update Methods
     public void updatePatientRecord(Patient p) {
@@ -156,6 +172,18 @@ public class Scheduler {
         }
     }
 
+    public void removeAppointment(Appointment a) {
+    	String query = "DELETE FROM Appointment WHERE Appointment_ID = " + a.getId();
+    	try{
+    		PreparedStatement statement = c.prepareStatement(query);
+    		statement.executeUpdate();
+    		System.out.println("Appointment Successfully Deleted");
+    	}catch(SQLException ex){
+            System.out.println("Not Able to Delete Appointment");
+        }
+    }
+    
+    
     
     //RecordExists Methods
     public boolean patientExists(Patient p) {
@@ -224,12 +252,14 @@ public class Scheduler {
                 ResultSet patient_result = patient_st.executeQuery();
                 if(patient_result.next()) {
                     temp_appt.setPatient_Name(patient_result.getString(1) + ", " + patient_result.getString(2));
+                    temp_appt.setPatient_Id(result.getInt(2));
                 }
 
                 PreparedStatement doctor_st = c.prepareStatement("Select D_Name FROM Doctor WHERE Doctor_ID = " + (int) result.getObject(5));
                 ResultSet doctor_result = doctor_st.executeQuery();
                 if(doctor_result.next()) {
                     temp_appt.setDoctor_Name(doctor_result.getString(1));
+                    temp_appt.setDoctor_Id(result.getInt(5));
                 }
 
                 result_appts.add(temp_appt);
@@ -268,13 +298,15 @@ public class Scheduler {
                 PreparedStatement patient_st = c.prepareStatement("Select Last_Name, First_Name FROM Patient WHERE Patient_ID = " + (int) result.getObject(2));
                 ResultSet patient_result = patient_st.executeQuery();
                 if(patient_result.next()) {
-                    temp_appt.setPatient_Name(patient_result.getString(1) + ", " + patient_result.getString(2));
+                    temp_appt.setPatient_Name(patient_result.getString(1) + ", " + patient_result.getString(2)); 
+                    temp_appt.setPatient_Id(result.getInt(2));
                 }
 
                 PreparedStatement doctor_st = c.prepareStatement("Select D_Name FROM Doctor WHERE Doctor_ID = " + (int) result.getObject(5));
                 ResultSet doctor_result = doctor_st.executeQuery();
                 if(doctor_result.next()) {
                     temp_appt.setDoctor_Name(doctor_result.getString(1));
+                    temp_appt.setDoctor_Id(result.getInt(5));
                 }
 
                 result_appts.add(temp_appt);
@@ -502,9 +534,11 @@ public class Scheduler {
 
     public static class Appointment{
         private String patient_Name;
+        private int patient_Id;
         private LocalDate appt_Date;
         private LocalTime appt_Time;
         private String doctor_Name;
+        private int doctor_Id;
         private String reason;
         private int id;
 
@@ -550,6 +584,22 @@ public class Scheduler {
         public int getId() {
             return id;
         }
+
+		public int getPatient_Id() {
+			return patient_Id;
+		}
+
+		public void setPatient_Id(int patient_Id) {
+			this.patient_Id = patient_Id;
+		}
+
+		public int getDoctor_Id() {
+			return doctor_Id;
+		}
+
+		public void setDoctor_Id(int doctor_Id) {
+			this.doctor_Id = doctor_Id;
+		}
 
     }
 
