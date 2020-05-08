@@ -240,7 +240,7 @@ public class Scheduler {
             PreparedStatement pst = c.prepareStatement("Select * FROM Appointment WHERE Appt_Date = '" + currentDayFormatted+ "' ORDER BY Time");
             ResultSet result = pst.executeQuery();
             while(result.next()) {
-            	while(((Timestamp)result.getObject(4)).toLocalDateTime().toLocalTime() != currentTime && currentTime != closeTime) {
+            	while(!((Timestamp)result.getObject(4)).toLocalDateTime().toLocalTime().equals(currentTime) && !currentTime.equals(closeTime)) {
             		result_appts.add(null);
             		currentTime.plusHours(1);
             	}
@@ -287,7 +287,7 @@ public class Scheduler {
             PreparedStatement pst = c.prepareStatement("Select * FROM Appointment WHERE Appt_Date = '" + currentDayFormatted+ "' AND Doctor_ID = " + doctor_ID + " ORDER BY Time");
             ResultSet result = pst.executeQuery();
             while(result.next()) {
-            	while(((Timestamp)result.getObject(4)).toLocalDateTime().toLocalTime() != currentTime && currentTime != closeTime) {
+            	while(!((Timestamp)result.getObject(4)).toLocalDateTime().toLocalTime().equals(currentTime) && !currentTime.equals(closeTime)) {
             		result_appts.add(null);
             		currentTime.plusHours(1);
             	}
