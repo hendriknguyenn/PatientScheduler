@@ -452,13 +452,13 @@ public class Scheduler {
             PreparedStatement pst = c.prepareStatement("Select * FROM MedicalEmployee WHERE ME_Name LIKE '%" + name + "%'");
             ResultSet result = pst.executeQuery();
             while(result.next()) {
-                Doctor temp_doctor = new Doctor(
+                Employee temp_employee = new Employee(
                         result.getInt(1),
                         result.getString(2),
                         result.getString(3),
-                        result.getString(4)
+                        result.getBoolean(4)
                 );
-                result_records.add(temp_doctor);
+                result_records.add(temp_employee);
             }
         } catch (SQLException e) {
             // TODO Auto-generated catch block
