@@ -56,7 +56,7 @@ public class Scheduler {
     }
 
     public void createDoctorRecord(Doctor doctor){
-        String doctorInfo = "INSERT INTO Doctor (D_Name, Phone, D_Password) VALUE (?, ?, ?)";
+        String doctorInfo = "INSERT INTO Doctor (D_Name, Phone, D_Password) VALUES (?, ?, ?)";
         try(PreparedStatement statement = c.prepareStatement(doctorInfo)){
             statement.setString(1, doctor.getD_Name());
             statement.setString(2, doctor.getPhone());
@@ -70,7 +70,7 @@ public class Scheduler {
     }
 
     public void createEmployeeRecord( Employee employee){
-        String employeeInfo = "INSERT INTO MedicalEmployee (ME_Name, ME_Password, Is_Receptionist ) VALUE (?, ?, ?)";
+        String employeeInfo = "INSERT INTO MedicalEmployee (ME_Name, ME_Password, Is_Receptionist ) VALUES (?, ?, ?)";
         try(PreparedStatement statement = c.prepareStatement(employeeInfo)){
             statement.setString(1, employee.getE_Name());
             statement.setString(2, employee.getE_Password());
@@ -84,7 +84,7 @@ public class Scheduler {
     }
 
     public void createAppointment(Appointment appointment) {
-        String query = "INSERT INTO Appointment (Patient_ID, Appt_Date, Time, Doctor_ID, Reason) VALUE (?,?,?,?,?)";
+        String query = "INSERT INTO Appointment (Patient_ID, Appt_Date, Time, Doctor_ID, Reason) VALUES (?,?,?,?,?)";
         try(PreparedStatement statement = c.prepareStatement(query)){
             statement.setInt(1, appointment.getPatient_Id());
             statement.setDate(2, Date.valueOf(appointment.getAppt_Date()));
