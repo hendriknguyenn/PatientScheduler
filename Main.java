@@ -1013,7 +1013,9 @@ public class Main extends Application {
                     dbAccessor.createDoctorRecord(new Scheduler.Doctor(values[0].getText(), values[1].getText(),values[2].getText()));
                 }else{
                     if(values[2].getText() == "Receptionist"){
-
+                        dbAccessor.createEmployeeRecord(new Scheduler.Employee(values[0].getText(), values[1].getText(), true));
+                    }else{
+                        dbAccessor.createEmployeeRecord(new Scheduler.Employee(values[0].getText(), values[1].getText(), false));
                     }
                 }
                 Alert createdRecordAlert = new Alert(Alert.AlertType.CONFIRMATION);
