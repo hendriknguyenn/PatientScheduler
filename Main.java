@@ -18,6 +18,10 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -30,6 +34,7 @@ import javafx.util.Duration;
 import javax.lang.model.element.Element;
 import javax.management.remote.rmi._RMIConnection_Stub;
 import javax.swing.*;
+import java.awt.*;
 import java.lang.annotation.ElementType;
 import java.lang.reflect.Field;
 import java.sql.Connection;
@@ -44,7 +49,7 @@ import java.util.concurrent.Callable;
 import java.util.regex.Pattern;
 
 public class Main extends Application {
-    private Button loginBtn, logoutBtn, addBtn, editBtn, delBtn, nextDayBtn, prevDayBtn, exitBtn, scheduleBtn, cancelBtn, viewProfileBtn;
+    private Button loginBtn, logoutBtn, addBtn, editBtn, delBtn, nextDayBtn, prevDayBtn, exitBtn, scheduleBtn, cancelBtn, viewProfileBtn, createRecBtn;
     private TextField usernameTF, pwTF, currentPW, searchRecordTF;
     final String dbUrl = "//src//SchedulerDB.accdb";
     private Stage primaryStage, addAppointmentWindow, userProfileWindow, editPatientRecordWindow, deleteRecordWindow, addNonApptWindow;
@@ -174,7 +179,7 @@ public class Main extends Application {
         searchBar.setSpacing(4);
         searchBar.setPadding(new Insets(0, 0,0,10));
         searchBar.setAlignment(Pos.CENTER_LEFT);
-        recordData.setBottom(searchBar);
+        //recordData.setBottom(searchBar);
         return recordData;
     }
 
@@ -212,8 +217,8 @@ public class Main extends Application {
                     editBtn.setDisable(true);
                     delBtn.setDisable(true);
                 }else{
+                    selectedRecordID = newValue.getUserData().toString();
                     if(recordType == "Patient"){
-                        selectedRecordID = newValue.getUserData().toString();
                         addBtn.setDisable(true);
                         editBtn.setDisable(false);
                         editBtn.setOnAction(editPatientRecordEvent);
@@ -428,10 +433,11 @@ public class Main extends Application {
         VBox col;
         HBox data = new HBox();
         for(int i=0; i<doctorList.length;i++){
-            //doctor label = doctorID
+            //doctor label = doctorName + ID
+            String name = doctorList[i].getD_Name();
             String dID = Integer.toString(doctorList[i].getId());
-            Label doctor = new Label(dID);
-            doctor.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+            Label doctor = new Label(name + "\nID#: "+dID);
+            doctor.setFont(Font.font("Arial", FontWeight.BOLD, 14));
             HBox header = new HBox(doctor);
             header.setPrefSize(50, 50);
             header.setAlignment(Pos.CENTER);
@@ -452,7 +458,6 @@ public class Main extends Application {
                 //set timeslot toggle buttons for current doctor/column; buttonText = N/A for empty slot, ApptID#: ## for taken slot
                 String buttonText;
                 if(doctorsApptByID[j] == null){
-                //if(dayApptsOfDoctor[j]==null){
                     //empty time slot
                     buttonText = "N/A";
                     timeslot = new ToggleButton("N/A");
@@ -462,8 +467,7 @@ public class Main extends Application {
                     timeslot.setToggleGroup(dayViewAppointments);
                 }else{
                     //taken time slot
-                    buttonText = doctorsApptByID[j].getId()+"";
-                    //buttonText = "ApptID#: " + dayApptsOfDoctor[j].getId();
+                    buttonText = "ApptID# " + doctorsApptByID[j].getId()+"";
                     timeslot = new ToggleButton(buttonText);
                     timeslot.setStyle("-fx-border-style: solid inside;"+
                             "fx-border-width: 1px;"+
@@ -598,6 +602,7 @@ public class Main extends Application {
                 data.getChildren().add(delBtn);
             }else if(currentView == "Doctor"){
                 addBtn = new Button("Add Doctor");
+                addBtn.setOnAction(addDoctorEvent);
                 addBtn.setDisable(false);
                 delBtn = new Button("Delete Doctor");
                 delBtn.setDisable(true);
@@ -606,6 +611,7 @@ public class Main extends Application {
                 data.getChildren().addAll(addBtn, delBtn);
             }else if(currentView == "Employee"){
                 addBtn = new Button("Add Employee");
+                addBtn.setOnAction(addEmployeeEvent);
                 addBtn.setDisable(false);
                 delBtn = new Button("Delete Employee");
                 delBtn.setDisable(true);
@@ -615,6 +621,7 @@ public class Main extends Application {
             }else{
                 addBtn = new Button("Add Patient");
                 addBtn.setDisable(false);
+                addBtn.setOnAction(addPatientEvent);
                 editBtn = new Button("Edit Patient");
                 editBtn.setDisable(true);
                 delBtn = new Button("Delete Patient");
@@ -655,7 +662,7 @@ public class Main extends Application {
         //loginBtn.setOnAction(e -> handle(accountTypeDrop));
         loginBtn.setOnAction(event -> {
             sessionType = "Receptionist";
-            sessionUserID = "1";
+            sessionUserID = "2";
             primaryStage.setScene(createHomeScene());
         });
         return new Scene(vbLogin, 475, 375);
@@ -758,6 +765,7 @@ public class Main extends Application {
                 enablePrimary();
             });
             confirm.setOnAction(event1 -> {
+                System.out.println(selectedRecordID);
                 if(currentView == "Appointment"){
                     Scheduler.Appointment temp = new Scheduler.Appointment(Integer.parseInt(selectedRecordID));
                     dbAccessor.removeAppointment(temp);
@@ -775,6 +783,7 @@ public class Main extends Application {
                 confirmDelet.setContentText("Record has been deleted");
                 confirmDelet.showAndWait();
                 deleteRecordWindow.close();
+                setDataOptions();
                 setData();
                 enablePrimary();
             });
@@ -963,8 +972,9 @@ public class Main extends Application {
                                 createdAppt.setContentText("Appointment Created");
                                 createdAppt.showAndWait();
                                 addAppointmentWindow.close();
-                                setData();
                                 enablePrimary();
+                                setData();
+
                             }else{
                                 invalidID = new Alert(Alert.AlertType.ERROR);
                                 invalidID.setHeaderText("Appointment Cannot Be Created");
@@ -997,65 +1007,199 @@ public class Main extends Application {
         }
     };
 
-    EventHandler<ActionEvent> addNonApptRecord = new EventHandler<ActionEvent>() {
+    EventHandler<ActionEvent> addEmployeeEvent = new EventHandler<ActionEvent>() {
         @Override
         public void handle(ActionEvent event) {
-            disablePrimary();
             addNonApptWindow = new Stage();
-            GridPane form = new GridPane();
-            String[] fieldValues;
-            Label[] fields;
-            TextField[] values;
-            Label header;
-            if(currentView == "Patient"){
-                fieldValues = new String[]{"First Name", "Last Name", "DOB","SSN", "Phone", "Address", "Email"};
-                header = new Label("Create New Patient");
-            }else if(currentView == "Doctor"){
-                fieldValues = new String[]{"Name", "Phone", "Password"};
-                header = new Label("Create New Doctor");
-            }else{
-                fieldValues = new String[]{"Name", "Password", "Employee Type"};
-                header = new Label("Create New Employee");
-            }
-            form.addRow(0, header);
-            fields = new Label[fieldValues.length];
-            values = new TextField[fieldValues.length];
-            for(int i=0; i< fields.length;i++){
-                Label f = new Label(fieldValues[i] + ": ");
-                values[i] = new TextField();
-                form.addRow(i+1,f, values[i]);
-            }
-            Button cancel = new Button("Cancel");
-            cancel.setOnAction(event1 -> {
+            BorderPane windowContent = new BorderPane();
+            windowContent.setPrefSize(350, 500);
+            Label header = new Label("Add Employee");
+            header.setFont(Font.font(20));
+            header.setAlignment(Pos.CENTER);
+            header.setPrefSize(350, 100);
+            windowContent.setTop(header);
+            //form fields
+            GridPane fields = new GridPane();
+            Label name = new Label("Name: ");
+            Label pw = new Label("Password: ");
+            Label empType = new Label("Employee Type: ");
+            TextField nameTF = new TextField();
+            TextField pwTF = new TextField();
+            ChoiceBox<String> employeeType = new ChoiceBox<>();
+            createRecBtn = new Button("Create Employee");
+            createRecBtn.setOnAction(event1 -> {
+                Alert invalidInput;
+                if(nameTF.getText().trim() !="" && pwTF.getText().trim()!=""&& employeeType.getSelectionModel().getSelectedItem()!=null){
+                    boolean receptionist = false;
+                    if(employeeType.getSelectionModel().getSelectedItem() == "Receptionist"){
+                        receptionist = true;
+                    }
+                    dbAccessor.createEmployeeRecord(new Scheduler.Employee(nameTF.getText(), pwTF.getText(), receptionist));
+                    setData();
+                    addNonApptWindow.close();
+                    enablePrimary();
+                }else{
+                    invalidInput = new Alert(Alert.AlertType.ERROR);
+                    invalidInput.setContentText("Please fill out the entire form");
+                    invalidInput.showAndWait();
+                }
+
+            });
+            cancelBtn = new Button("Cancel");
+            cancelBtn.setOnAction(event1 -> {
                 addNonApptWindow.close();
                 enablePrimary();
             });
-            Button create = new Button("Create");
-            create.setOnAction(event1 -> {
-                if(currentView == "Patient"){
-                    dbAccessor.createPatientRecord(new Scheduler.Patient(values[0].getText(), values[1].getText(),values[2].getText(), values[3].getText(), values[4].getText(), values[5].getText(),values[6].getText()));
-                }else if(currentView == "Doctor"){
-                    dbAccessor.createDoctorRecord(new Scheduler.Doctor(values[0].getText(), values[1].getText(),values[2].getText()));
-                }else{
-                    if(values[2].getText() == "Receptionist"){
-                        dbAccessor.createEmployeeRecord(new Scheduler.Employee(values[0].getText(), values[1].getText(), true));
-                    }else{
-                        dbAccessor.createEmployeeRecord(new Scheduler.Employee(values[0].getText(), values[1].getText(), false));
-                    }
-                }
-                Alert createdRecordAlert = new Alert(Alert.AlertType.CONFIRMATION);
-                createdRecordAlert.setContentText("Record Created");
-                createdRecordAlert.showAndWait();
-                setData();
-                enablePrimary();
-            });
-            form.addRow(fields.length+2,cancel, create);
-            addNonApptWindow.setScene(new Scene(form));
+            cancelBtn.setPrefSize(100, 30);
+            createRecBtn.setPrefSize(100,30);
+            employeeType.getItems().addAll("Receptionist", "Other");
+            fields.addRow(0, name, nameTF);
+            fields.addRow(1, pw, pwTF);
+            fields.addRow(2, empType, employeeType);
+            fields.addRow(3, cancelBtn, createRecBtn);
+            fields.setVgap(10);
+            windowContent.setCenter(fields);
+            addNonApptWindow.setScene(new Scene(windowContent));
             addNonApptWindow.showAndWait();
-            enablePrimary();
+
         }
     };
 
+    EventHandler<ActionEvent> addDoctorEvent = new EventHandler<ActionEvent>() {
+        @Override
+        public void handle(ActionEvent event) {
+            addNonApptWindow = new Stage();
+            BorderPane windowContent = new BorderPane();
+            windowContent.setPrefSize(350, 500);
+            Label header = new Label("Add Doctor");
+            header.setFont(Font.font(20));
+            header.setAlignment(Pos.CENTER);
+            header.setPrefSize(350, 100);
+            windowContent.setTop(header);
+            //form fields
+            GridPane fields = new GridPane();
+            Label name = new Label("Name: ");
+            Label phone = new Label("Phone: ");
+            Label pw = new Label("Password: ");
+            TextField nameTF = new TextField();
+            TextField phoneTF = new TextField();
+            TextField pwTF = new TextField();
+            createRecBtn = new Button("Create Dooctor");
+            createRecBtn.setOnAction(event1 -> {
+                Alert invalidInput;
+                if(nameTF.getText().trim() !="" && pwTF.getText().trim()!=""&& phoneTF.getText().trim() != ""){
+                    dbAccessor.createDoctorRecord(new Scheduler.Doctor(nameTF.getText(), phoneTF.getText(), pwTF.getText()));
+                    setData();
+                    addNonApptWindow.close();
+                    enablePrimary();
+                }else{
+                    invalidInput = new Alert(Alert.AlertType.ERROR);
+                    invalidInput.setContentText("Please fill out the entire form");
+                    invalidInput.showAndWait();
+                }
+
+            });
+            cancelBtn = new Button("Cancel");
+            cancelBtn.setOnAction(event1 -> {
+                addNonApptWindow.close();
+                enablePrimary();
+            });
+            cancelBtn.setPrefSize(200, 30);
+            createRecBtn.setPrefSize(200,30);
+            fields.addRow(0, name, nameTF);
+            fields.addRow(1, pw, pwTF);
+            fields.addRow(2, phone, phoneTF);
+            fields.addRow(3, cancelBtn, createRecBtn);
+            fields.setVgap(10);
+            fields.setAlignment(Pos.CENTER);
+            windowContent.setCenter(fields);
+            addNonApptWindow.setScene(new Scene(windowContent));
+            addNonApptWindow.showAndWait();
+
+        }
+    };
+
+    EventHandler<ActionEvent> addPatientEvent = new EventHandler<ActionEvent>() {
+        @Override
+        public void handle(ActionEvent event) {
+            addNonApptWindow = new Stage();
+            BorderPane windowContent = new BorderPane();
+            windowContent.setPrefSize(400, 600);
+            Label header = new Label("Add Patient");
+            header.setFont(Font.font(20));
+            header.setAlignment(Pos.CENTER);
+            header.setPrefSize(350, 100);
+            windowContent.setTop(header);
+            //form fields
+            GridPane fields = new GridPane();
+            Label fname = new Label("First Name: ");
+            Label lname = new Label("Last Name: ");
+            Label dob = new Label("DOB: ");
+            Label ssn = new Label("SSN: ");
+            Label phone = new Label("Phone: ");
+            Label address = new Label("Address: ");
+            Label email = new Label("Email: ");
+            TextField fnameTF = new TextField();
+            TextField lnameTF = new TextField();
+            TextField dobTF = new TextField();
+            TextField ssnTF = new TextField();
+            TextField phoneTF = new TextField();
+            TextField addressTF = new TextField();
+            TextField emailTF = new TextField();
+            TextField[] formVal = {fnameTF, lnameTF, dobTF, ssnTF, phoneTF, addressTF, emailTF};
+            createRecBtn = new Button("Create Patient");
+            createRecBtn.setOnAction(event1 -> {
+                Alert invalidInput;
+                boolean emptyField = false;
+                int i=0;
+                while(i<formVal.length){
+                    if(formVal[i].getText().trim()==""){
+                        emptyField = true;
+                        break;
+                    }else{
+                        i+=1;
+                    }
+                }
+                if(emptyField){
+                    invalidInput = new Alert(Alert.AlertType.ERROR);
+                    invalidInput.setContentText("Please fill out the entire form");
+                }else{
+                    dbAccessor.createPatientRecord(new Scheduler.Patient(
+                            formVal[0].getText(),   //first name
+                            formVal[1].getText(),   //last name
+                            formVal[2].getText(),   //date of birth
+                            formVal[3].getText(),   //ssn
+                            formVal[4].getText(),   //phone
+                            formVal[5].getText(),   //address
+                            formVal[6].getText())); //email
+                    setData();
+                    addNonApptWindow.close();
+                    enablePrimary();
+                }
+            });
+            cancelBtn = new Button("Cancel");
+            cancelBtn.setOnAction(event1 -> {
+                addNonApptWindow.close();
+                enablePrimary();
+            });
+            cancelBtn.setPrefSize(200, 30);
+            createRecBtn.setPrefSize(200,30);
+            fields.addRow(0, fname, fnameTF);
+            fields.addRow(1, lname, lnameTF);
+            fields.addRow(2, dob, dobTF);
+            fields.addRow(3, ssn, ssnTF);
+            fields.addRow(4, phone, phoneTF);
+            fields.addRow(5, address, addressTF);
+            fields.addRow(6,email, emailTF);
+            fields.addRow(7, cancelBtn, createRecBtn);
+            fields.setVgap(5);
+            fields.setAlignment(Pos.CENTER);
+            windowContent.setCenter(fields);
+            addNonApptWindow.setScene(new Scene(windowContent));
+            addNonApptWindow.showAndWait();
+
+        }
+    };
 
     EventHandler<ActionEvent> changeViewEvent = new EventHandler<ActionEvent>() {
         @Override
@@ -1079,12 +1223,42 @@ public class Main extends Application {
         }
     };
 
-    //needs getEmployeeInfo(String ID)
-    //needs getEmployeeFields()
     EventHandler<ActionEvent> viewProfileEvent = new EventHandler<ActionEvent>() {
         @Override
         public void handle(ActionEvent event) {
             disablePrimary();
+            String userPw = "No Password in System", userName = "No Name in System";
+            if(sessionType == "Doctor"){
+                ArrayList<Scheduler.Doctor> d = dbAccessor.getDoctorRecords();
+                int i=0;
+                while(i<d.size()){
+                    if(d.get(i).getId() == Integer.parseInt(sessionUserID)){
+                        userPw = d.get(i).getD_Password();
+                        userName = d.get(i).getD_Name();
+                        selectedDocRec = new Scheduler.Doctor(Integer.parseInt(sessionUserID), userName, d.get(i).getPhone(), userPw);
+                        break;
+                    }else{
+                        i++;
+                    }
+                }
+            }else{
+                ArrayList<Scheduler.Employee> e = dbAccessor.getEmployeeRecords();
+                int i=0;
+                while(i<e.size()){
+                    if(e.get(i).getId() == Integer.parseInt(sessionUserID)){
+                        userPw = e.get(i).getE_Password();
+                        userName = e.get(i).getE_Name();
+                        boolean isRec = false;
+                        if(sessionType == "Receptionist"){
+                            isRec = true;
+                        }
+                        selectedEmpRec = new Scheduler.Employee(Integer.parseInt(sessionUserID),userName, userPw,isRec);
+                        break;
+                    }else{
+                        i++;
+                    }
+                }
+            }
             userProfileWindow = new Stage();
             userProfileWindow.setTitle("Your Profile");
             userProfileWindow.setResizable(false);
@@ -1097,19 +1271,19 @@ public class Main extends Application {
             Label header = new Label("Profile: ");
             header.setFont(Font.font("Arial", FontWeight.BOLD, 20));
             header.setPrefHeight(50);
-            Label userHeading = new Label("[Employee's Name]");
+            Label userHeading = new Label(userName);
             userHeading.setPrefHeight(50);
             userHeading.setFont(Font.font("Arial", FontWeight.BOLD, 20));
             profile.addRow(0, header, userHeading);
             Label username = new Label("Employee ID: ");
             username.setFont(Font.font("Arial", FontWeight.BOLD, 16));
-            Label currentUN = new Label("[current ID]");
+            Label currentUN = new Label(sessionUserID);
             currentUN.setFont(Font.font("Arial", FontWeight.BOLD, FontPosture.ITALIC, 16));
             userHeading.setFont(Font.font(14));
             profile.addRow(1, username, currentUN);
             Label pw = new Label("Password: ");
             pw.setFont(Font.font("Arial", FontWeight.BOLD, 16));
-            currentPW = new TextField("[current password]");
+            currentPW = new TextField(userPw);
             Button update = new Button("Update");
             currentPW.textProperty().addListener(new ChangeListener<String>() {
                 @Override
@@ -1126,8 +1300,14 @@ public class Main extends Application {
             });
             update.setPrefWidth(75);
             update.setDisable(true);
+            update.setOnAction(event1 -> {
+                if(sessionType == "Doctor"){
+                    dbAccessor.updateDoctorRecord(selectedDocRec);
+                }else{
+                    dbAccessor.updateEmployeeRecord(selectedEmpRec);
+                }
+            });
             profile.addRow(3, cancel, update);
-            //need to fill with real values
             userProfileWindow.setScene(new Scene(profile));
             userProfileWindow.setAlwaysOnTop(true);
             userProfileWindow.showAndWait();
@@ -1170,26 +1350,37 @@ public class Main extends Application {
             switch (d[0]){
                 case "JANUARY":
                     month = 1;
+                    break;
                 case "FEBRUARY":
                     month = 2;
+                    break;
                 case "MARCH":
                     month = 3;
+                    break;
                 case "APRIL":
                     month = 4;
+                    break;
                 case "MAY":
                     month = 5;
+                    break;
                 case "JUNE":
                     month = 6;
+                    break;
                 case "JULY":
                     month = 7;
+                    break;
                 case "AUGUST":
                     month = 8;
+                    break;
                 case "SEPTEMBER":
                     month = 9;
+                    break;
                 case "OCTOBER":
                     month =10;
+                    break;
                 case "NOVEMBER":
                     month = 11;
+                    break;
                 default:
                     month = 12;
 
@@ -1197,7 +1388,6 @@ public class Main extends Application {
             return LocalDate.of(year, month, day);
         }
     }
-
 
     private class LoginTextFieldListener implements ChangeListener<String> {
         @Override

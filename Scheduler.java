@@ -40,7 +40,7 @@ public class Scheduler {
 
     //Create Methods
     public void createPatientRecord(Patient patient){
-        String patientInfo = "INSERT INTO Patient (First_Name, Last_Name, Date_of_Birth, SSN, Phone, Address) VALUES (?, ?, ?, ?, ?, ?)";
+        String patientInfo = "INSERT INTO Patient (First_Name, Last_Name, Date_of_Birth, SSN, Phone, Address, Email) VALUES (?, ?, ?, ?, ?, ?, ?)";
         try(PreparedStatement statement = c.prepareStatement(patientInfo)){
             statement.setString(1,  patient.getFname());
             statement.setString(2,  patient.getLname());
@@ -48,6 +48,7 @@ public class Scheduler {
             statement.setString(4,  patient.getSSN());
             statement.setString(5,  patient.getPhone());
             statement.setString(6, patient.getAddress());
+            statement.setString(7, patient.getEmail());
             statement.executeUpdate();
             System.out.println("New  Patient Record Created");
         } catch (SQLException ex){
@@ -290,7 +291,7 @@ public class Scheduler {
             PreparedStatement pst = c.prepareStatement("Select * FROM Appointment WHERE Appt_Date = '" + currentDayFormatted+ "' AND Doctor_ID = " + doctor_ID + " ORDER BY Time");
             ResultSet result = pst.executeQuery();
             while(result.next()) {
-            	while(!((Timestamp)result.getObject(4)).toLocalDateTime().toLocalTime().equals(currentTime) && !currentTime.equals(closeTime)) {
+                while(!((Timestamp)result.getObject(4)).toLocalDateTime().toLocalTime().equals(currentTime) && !currentTime.equals(closeTime)) {
                     result_appts.add(null);
                     currentTime = currentTime.plusHours(1);
                 }
@@ -344,6 +345,7 @@ public class Scheduler {
                         result.getString(7),
                         result.getString(8)
                 );
+                System.out.println(temp_patient.getEmail());
                 result_records.add(temp_patient);
             }
         } catch (SQLException e) {
@@ -487,7 +489,7 @@ public class Scheduler {
             SSN = s;
             phone = p;
             address = a;
-            setEmail(e);
+            email = e;
         }
         public Patient(int i, String f, String l, String d, String s, String p, String a, String e){
             id = i;
@@ -497,7 +499,7 @@ public class Scheduler {
             SSN = s;
             phone = p;
             address = a;
-            setEmail(e);
+            email = e;
         }
         public void setFname(String fname) {
             this.fname = fname;
