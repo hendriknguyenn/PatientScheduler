@@ -128,10 +128,27 @@ public class Main extends Application {
             recordData.setCenter(buildRecordsData(doctorList, "Doctor"));
         }else{
             header = new Label("Appointment Records: Next 3 Days");
-            //Scheduler.Appointment[] apptList = dbAccessor.getAppointments(currentDay).toArray(new Scheduler.Appointment[dbAccessor.getAppointments(currentDay).size()]);
-            //apptList.addAll(dbAccessor.getAppointments(currentDay.plusDays(1)));
-            //apptList.addAll(dbAccessor.getAppointments(currentDay.plusDays(1)));
-            //remove null elements
+            Scheduler.Appointment[] apptList;
+            ArrayList<Scheduler.Appointment> appointments;
+            String type;
+            if(sessionType == "Doctor"){
+                appointments = dbAccessor.getAppointments(today, Integer.parseInt(sessionUserID));
+                appointments.addAll(dbAccessor.getAppointments(today.plusDays(1), Integer.parseInt(sessionUserID)));
+                appointments.addAll(dbAccessor.getAppointments(today.plusDays(2), Integer.parseInt(sessionUserID)));
+                type = "Your Appointments";
+            }else{
+                appointments = dbAccessor.getAppointments(today);
+                appointments.addAll(dbAccessor.getAppointments(today.plusDays(1)));
+                appointments.addAll(dbAccessor.getAppointments(today.plusDays(2)));
+                type = "Appointment";
+            }
+            for(int i=0; i< appointments.size(); i++){
+                if(appointments.get(i) == null){
+                    appointments.remove(i);
+                }
+            }
+            apptList = appointments.toArray(new Scheduler.Appointment[appointments.size()]);
+            recordData.setCenter(buildRecordsData(apptList, type));
 
         }
         header.setPrefSize(600, 50);
@@ -162,6 +179,15 @@ public class Main extends Application {
     }
 
     public ScrollPane buildRecordsData(Object[] list, String recordType){
+        if(list[0] == null){
+            ScrollPane noContent = new ScrollPane();
+            Label empty = new Label("No Records in Database");
+            empty.setPrefSize(300,75);
+            empty.setAlignment(Pos.CENTER);
+            empty.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+            noContent.setContent(empty);
+            return noContent;
+        }
         String[] fields;
         if(recordType == "Patient"){
             fields = new String[]{"ID", "First Name", "Last Name", "DOB", "SSN", "Phone", "Address", "Email"};
@@ -231,7 +257,8 @@ public class Main extends Application {
                 selectedDocRec = (Scheduler.Doctor) list[i];
                 rowData = selectedDocRec.getValues();
             }else{
-
+                selectedAppt = (Scheduler.Appointment) list[i];
+                rowData = selectedAppt.getValues();
             }
             ToggleButton rowSelector = new ToggleButton("Edit");
             rowSelector.setToggleGroup(dataBaseSelection);
@@ -360,41 +387,33 @@ public class Main extends Application {
         return appointmentData;
     }
 
-    public GridPane fillDoctorAppointmentData(){
+    public ScrollPane fillDoctorAppointmentData(){
         //temp
         String doctorID = sessionUserID;
         Scheduler.Appointment appt;
         ArrayList<Scheduler.Appointment> doctorsAppt = dbAccessor.getAppointments(currentDay, Integer.parseInt(doctorID));
-        GridPane content = new GridPane();
-        Label time = new Label("Time");
-        Label apptID = new Label("Appointment ID");
-        Label patient = new Label("Patient");
-        Label reason = new Label("Reason");
-        content.addRow(0, time, apptID, patient, reason);
-        for(int i=0; i<11 ;i++){
-            appt = doctorsAppt.get(i);
-            String t;
-            if(i<5){
-                t = (i+7) + "am";
-            }else if(i==5){
-                t = (i+7) + "pm";
+        HBox data = new HBox();
+        VBox col = new VBox();
+        Label header = new Label("Appt ID");
+        header.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+        header.setPrefSize(100, 50);
+        header.setAlignment(Pos.CENTER);
+        col.getChildren().add(header);
+        Label timeslot;
+        for(int i=0; i< doctorsAppt.size();i++){
+            if(doctorsAppt.get(i) == null){
+                timeslot = new Label("N/A");
             }else{
-                t = (i-5) + "pm";
+                timeslot = new Label(doctorsAppt.get(i).getId() +"");
             }
-            Label timeslot = new Label(t);
-            timeslot.setFont(Font.font("Arial", FontWeight.BOLD, 20));
-            if(appt == null){
-                apptID = new Label("N/A");
-                patient = new Label("N/A");
-                reason = new Label("N/A");
-            }else{
-                apptID = new Label(Integer.toString(appt.getId()));
-                patient = new Label(appt.getPatient_Name());
-                reason = new Label(appt.getReason());
-            }
-            content.addRow(i+1, timeslot, apptID, patient, reason);
+            timeslot.setAlignment(Pos.CENTER);
+            timeslot.setFont(Font.font("Arial", 16));
+            timeslot.setPrefSize(110, 450/11);
+            col.getChildren().add(timeslot);
         }
-
+        data.getChildren().add(col);
+        ScrollPane content = new ScrollPane();
+        content.setContent(data);
         return content;
     }
 
@@ -408,8 +427,6 @@ public class Main extends Application {
         int apptHeight = 500;
         VBox col;
         HBox data = new HBox();
-        dayViewAppointments = new ToggleGroup();
-        dayViewAppointments.selectedToggleProperty().addListener(timeSlotSelection);
         for(int i=0; i<doctorList.length;i++){
             //doctor label = doctorID
             String dID = Integer.toString(doctorList[i].getId());
@@ -607,15 +624,6 @@ public class Main extends Application {
                 delBtn.setPrefWidth(200);
                 data.getChildren().addAll(addBtn, editBtn, delBtn);
             }
-            delBtn.setOnAction(event -> {
-                if(currentView == "Day View" || currentView == "Appointment"){
-                    // deleteAppointmentRecord
-                }else if(currentView == "Patient"){
-                    // deletePatientRecord
-                }else{
-                    // deleteEmployee
-                }
-            });
         }
         data.setAlignment(Pos.CENTER);
         functions.setCenter(data);
@@ -846,6 +854,7 @@ public class Main extends Application {
             if(currentDay.isBefore(today)){
                 invalid.setContentText("Can only schedule a future appointment");
                 invalid.showAndWait();
+                enablePrimary();
             }else if(currentDay.isEqual(today)){
                 //appointments on same day must be made at least 2 hours before appointment time
                 int selectedHour = Integer.parseInt(selected.time.substring(0, selected.time.length()-2));
@@ -857,6 +866,7 @@ public class Main extends Application {
                 if(currentHour > selectedHour+2){
                     invalid.setContentText("Appointments must be scheduled at least 2 hours prior");
                     invalid.showAndWait();
+                    enablePrimary();
                 }
             }else {
                 addAppointmentWindow = new Stage();
@@ -931,15 +941,30 @@ public class Main extends Application {
                     String inputID = searchPatientTF.getText();
                     //check if empty
                     if(!inputID.trim().equals("")){
+                        boolean allLetters = inputID.chars().allMatch(Character::isDigit);
                         //ID should include only numbers
-                        Alert invalidID;
-                        if(Pattern.matches("[a-zA-Z]+", inputID) == false){
-                            System.out.println("Does not contain character");
+                        Alert invalidID, createdAppt;
+                        if(allLetters){
                             if(dbAccessor.patientExists(new Scheduler.Patient(inputID))){
-                                System.out.println("Exists");
                                 int patientID = Integer.parseInt(inputID);
                                 //create Appointment
                                 Scheduler.Appointment newAppt = new Scheduler.Appointment();
+                                newAppt.setPatient_Id(patientID);
+                                newAppt.setAppt_Time(selected.getTime());
+                                newAppt.setAppt_Date(selected.getDate());
+                                newAppt.setDoctor_Id(Integer.parseInt(selected.doctorID));
+                                if(reasonTF.getText().isEmpty()){
+                                    newAppt.setReason("");
+                                }else{
+                                    newAppt.setReason(reasonTF.getText());
+                                }
+                                dbAccessor.createAppointment(newAppt);
+                                createdAppt = new Alert(Alert.AlertType.CONFIRMATION);
+                                createdAppt.setContentText("Appointment Created");
+                                createdAppt.showAndWait();
+                                addAppointmentWindow.close();
+                                setData();
+                                enablePrimary();
                             }else{
                                 invalidID = new Alert(Alert.AlertType.ERROR);
                                 invalidID.setHeaderText("Appointment Cannot Be Created");
@@ -1031,19 +1056,6 @@ public class Main extends Application {
         }
     };
 
-    EventHandler<ActionEvent> displaySearchResultEvent = new EventHandler<ActionEvent>() {
-        @Override
-        public void handle(ActionEvent event) {
-            Label header = new Label("Profile: ");
-            header.setFont(Font.font("Arial", FontWeight.BOLD, 20));
-            //if Patient, allow editting if Receptionist
-            if(currentView == "Patient"){
-
-            }else{
-
-            }
-        }
-    };
 
     EventHandler<ActionEvent> changeViewEvent = new EventHandler<ActionEvent>() {
         @Override
@@ -1139,6 +1151,50 @@ public class Main extends Application {
         }
         public String toString(){
             return slotText + "-" + date + "-" + time + "-" + doctorID;
+        }
+        public LocalTime getTime(){
+            char[] t = time.toCharArray();
+            String hour;
+            if (t.length == 4) {
+                hour = time.substring(0, 1);
+            }else{
+                hour = time.charAt(0) + "";
+            }
+            return LocalTime.of(Integer.parseInt(hour), 0);
+        }
+        public LocalDate getDate(){
+            String[]d = date.split(" ");
+            int year = Integer.parseInt(d[2]);
+            int day = Integer.parseInt(d[1].substring(0, d[1].indexOf(",")));
+            int month;
+            switch (d[0]){
+                case "JANUARY":
+                    month = 1;
+                case "FEBRUARY":
+                    month = 2;
+                case "MARCH":
+                    month = 3;
+                case "APRIL":
+                    month = 4;
+                case "MAY":
+                    month = 5;
+                case "JUNE":
+                    month = 6;
+                case "JULY":
+                    month = 7;
+                case "AUGUST":
+                    month = 8;
+                case "SEPTEMBER":
+                    month = 9;
+                case "OCTOBER":
+                    month =10;
+                case "NOVEMBER":
+                    month = 11;
+                default:
+                    month = 12;
+
+            }
+            return LocalDate.of(year, month, day);
         }
     }
 
