@@ -37,10 +37,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.lang.annotation.ElementType;
 import java.lang.reflect.Field;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -51,7 +48,7 @@ import java.util.regex.Pattern;
 public class Main extends Application {
     private Button loginBtn, logoutBtn, addBtn, editBtn, delBtn, nextDayBtn, prevDayBtn, exitBtn, scheduleBtn, cancelBtn, viewProfileBtn, createRecBtn;
     private TextField usernameTF, pwTF, currentPW, searchRecordTF;
-    final String dbUrl = "//src//SchedulerDB.accdb";
+    final static String databaseURL = "jdbc:ucanaccess://src//patient_scheduler//SchedulerDB.accdb";
     private Stage primaryStage, addAppointmentWindow, userProfileWindow, editPatientRecordWindow, deleteRecordWindow, addNonApptWindow;
     private String sessionType, sessionUserID, currentView, selectedRecordID, selectedRecordType;
     private BorderPane home, functions, data;
@@ -659,47 +656,30 @@ public class Main extends Application {
         gpLogin.setAlignment(Pos.CENTER);
         VBox vbLogin = new VBox(20, enterLoginInfoLb, gpLogin, accountTypeDrop, loginBtn);
         vbLogin.setAlignment(Pos.CENTER);
-        //loginBtn.setOnAction(e -> handle(accountTypeDrop));
-        loginBtn.setOnAction(event -> {
-            sessionType = "Receptionist";
-            sessionUserID = "2";
-            primaryStage.setScene(createHomeScene());
-        });
+        loginBtn.setOnAction(e -> handle(accountTypeDrop));
         return new Scene(vbLogin, 475, 375);
     }
 
     public void handle (ChoiceBox<String> accountTypeDrop ) { // when the button is clicked
-        try {
-            String credential = accountTypeDrop.getValue();	// getting the option the user chose in dropdown
-            String IDquery = null;
-            String passQuery = null;
-            if(credential=="Receptionist") {				// changes values for obtaining login from msaccess database
-                IDquery = "Receptionist_ID=?";
-                passQuery = "R_Password=?";
-            }
-            else if (credential=="Doctor") {
-                IDquery = "Doctor_ID=?";
-                passQuery = "D_Password=?";
-            }
-            else if (credential=="Medical Employee") {
-                credential = "MedicalEmployee";
-                IDquery = "Med_Employee_ID=?";
-                passQuery = "ME_Password=?";
-            }
-            int ID = Integer.parseInt(usernameTF.getText());  // get the ID number from the input
-            String pword = pwTF.getText();
-            Connection con = DriverManager.getConnection(dbUrl);
-            PreparedStatement pst = con.prepareStatement("Select * FROM " +credential+ " WHERE " +IDquery+ " AND " +passQuery);
-            pst.setInt(1, ID);
-            pst.setString(2,pword);
+        String credential = accountTypeDrop.getValue();	// getting the option the user chose in dropdown
+        String query;
+        int ID = Integer.parseInt(usernameTF.getText());  // get the ID number from the input
+        String pword = pwTF.getText().trim();
+        if(credential=="Receptionist" || credential=="Medical Employee") {				// changes values for obtaining login from msaccess database
+            query = "SELECT * FROM MedicalEmployee WHERE Med_Employee_ID = "+ ID + " AND ME_Password = " +pword;
+        }
+        else if (credential=="Doctor") {
+            query = "SELECT * FROM Doctor WHERE Doctor_ID = "+ ID + " AND D_Password = " +pword;
+        }else {
+            query = "";
+        }
+        try{
+            Connection con = DriverManager.getConnection(databaseURL);
+            PreparedStatement pst = con.prepareStatement(query);
+            System.out.println("hi");
             ResultSet rs = pst.executeQuery();
             if (rs.next()) {
-                /*
-                 * ADD if statements to open specific schedules for different users; for example if it is doctor, open the
-                 * schedule so that it is the correct schedule for the role of the doctor to view. Doctors only get
-                 * to view the schedule. EX: primaryStage.setScene(scheduleDisplayDoctor)
-                 */
-                sessionUserID = IDquery;
+                sessionUserID = ID+"";
                 sessionType = credential;
                 primaryStage.setScene(createHomeScene());
             }else {
@@ -708,7 +688,7 @@ public class Main extends Application {
                 wrongCred.setContentText("Please contact your administrator if you forgot your credentials");
                 wrongCred.showAndWait();
             }
-        } catch (Exception e) {
+        } catch (SQLException e) {
             System.out.println("Connection to database failed");
             Alert invalidUser = new Alert(Alert.AlertType.ERROR);
             invalidUser.setHeaderText("Invalid username or password");
