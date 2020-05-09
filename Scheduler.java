@@ -23,12 +23,12 @@ public class Scheduler {
      * GUI interacts with Scheduler object and associated methods
      */
     public Scheduler(){
-    	try {
-			c = DriverManager.getConnection(databaseURL);
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+        try {
+            c = DriverManager.getConnection(databaseURL);
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -36,9 +36,8 @@ public class Scheduler {
      * The patient argument is instantiated and passed after receiving inputted data fields
      *
      * @param patient provides data for 5 fields of Patient
-     * @param c connection to SchedulerDB passed from Scheduler object
      */
-    
+
     //Create Methods
     public void createPatientRecord(Patient patient){
         String patientInfo = "INSERT INTO Patient (First_Name, Last_Name, Date_of_Birth, SSN, Phone, Address) VALUES (?, ?, ?, ?, ?, ?)";
@@ -69,7 +68,7 @@ public class Scheduler {
         }
 
     }
-    
+
     public void createEmployeeRecord( Employee employee){
         String employeeInfo = "INSERT INTO MedicalEmployee (ME_Name, ME_Password, Is_Receptionist ) VALUE (?, ?, ?)";
         try(PreparedStatement statement = c.prepareStatement(employeeInfo)){
@@ -83,10 +82,10 @@ public class Scheduler {
         }
 
     }
-    
+
     public void createAppointment(Appointment appointment) {
-    	String query = "INSERT INTO Appointment (Patient_ID, Appt_Date, Time, Doctor_ID, Reason) VALUE (?,?,?,?,?)";
-    	try(PreparedStatement statement = c.prepareStatement(query)){
+        String query = "INSERT INTO Appointment (Patient_ID, Appt_Date, Time, Doctor_ID, Reason) VALUE (?,?,?,?,?)";
+        try(PreparedStatement statement = c.prepareStatement(query)){
             statement.setInt(1, appointment.getPatient_Id());
             statement.setDate(2, Date.valueOf(appointment.getAppt_Date()));
             statement.setTime(3, Time.valueOf(appointment.getAppt_Time()));
@@ -98,137 +97,137 @@ public class Scheduler {
             System.out.println("Not Able to Create New Appointment");
         }
     }
-    
-    
-    
+
+
+
     //Update Methods
     public void updatePatientRecord(Patient p) {
-    	String query = "UPDATE Patient SET First_Name = '" + p.getFname() + "', Last_Name = '" + p.getLname() + "', Date_of_Birth = '" + p.getDOB() + "', SSN = '" + p.getSSN()  
-    			    	 + "',  Phone = '" + p.getPhone() + "', Address = '" + p.getAddress() + "',  Email = '" + p.getEmail() 
-    			    	 + "' WHERE Patient_ID = " + p.getId();
-    	try{
-    		PreparedStatement statement = c.prepareStatement(query);
-    		statement.executeUpdate();
-    		System.out.println("Patient Record Successfully Updated");
-    	}catch(SQLException ex){
+        String query = "UPDATE Patient SET First_Name = '" + p.getFname() + "', Last_Name = '" + p.getLname() + "', Date_of_Birth = '" + p.getDOB() + "', SSN = '" + p.getSSN()
+                + "',  Phone = '" + p.getPhone() + "', Address = '" + p.getAddress() + "',  Email = '" + p.getEmail()
+                + "' WHERE Patient_ID = " + p.getId();
+        try{
+            PreparedStatement statement = c.prepareStatement(query);
+            statement.executeUpdate();
+            System.out.println("Patient Record Successfully Updated");
+        }catch(SQLException ex){
             System.out.println("Not Able to Update Patient Record");
         }
     }
-    
+
     public void updateDoctorRecord(Doctor d) {
-    	String query = "UPDATE Doctor SET D_Name = '" + d.getD_Name() + "', Phone = '" + d.getPhone() + "', D_Password = '" + d.getD_Password() + "' WHERE Doctor_ID = " + d.getId();
-    	try{
-    		PreparedStatement statement = c.prepareStatement(query);
-    		statement.executeUpdate();
-    		System.out.println("Doctor Record Successfully Updated");
-    	}catch(SQLException ex){
+        String query = "UPDATE Doctor SET D_Name = '" + d.getD_Name() + "', Phone = '" + d.getPhone() + "', D_Password = '" + d.getD_Password() + "' WHERE Doctor_ID = " + d.getId();
+        try{
+            PreparedStatement statement = c.prepareStatement(query);
+            statement.executeUpdate();
+            System.out.println("Doctor Record Successfully Updated");
+        }catch(SQLException ex){
             System.out.println("Not Able to Update Doctor Record");
         }
     }
-    
+
     public void updateEmployeeRecord(Employee e) {
-    	String query = "UPDATE MedicalEmployee SET ME_Name = '" + e.getE_Name() + "', E_Password = '" + e.getE_Password() + "', Is_Receptionist = "+ e.isIs_Receptionist() +" WHERE Med_Employee_ID = " + e.getId();
-    	try{
-    		PreparedStatement statement = c.prepareStatement(query);
-    		statement.executeUpdate();
-    		System.out.println("Employee Record Successfully Updated");
-    	}catch(SQLException ex){
+        String query = "UPDATE MedicalEmployee SET ME_Name = '" + e.getE_Name() + "', E_Password = '" + e.getE_Password() + "', Is_Receptionist = "+ e.isIs_Receptionist() +" WHERE Med_Employee_ID = " + e.getId();
+        try{
+            PreparedStatement statement = c.prepareStatement(query);
+            statement.executeUpdate();
+            System.out.println("Employee Record Successfully Updated");
+        }catch(SQLException ex){
             System.out.println("Not Able to Update Employee Record");
         }
     }
-    
-    
+
+
     //Remove Methods
     public void removePatientRecord(Patient p) {
-    	String query = "DELETE FROM Patient WHERE Patient_ID = " + p.getId();
-    	try{
-    		PreparedStatement statement = c.prepareStatement(query);
-    		statement.executeUpdate();
-    		System.out.println("Patient Record Successfully Deleted");
-    	}catch(SQLException ex){
+        String query = "DELETE FROM Patient WHERE Patient_ID = " + p.getId();
+        try{
+            PreparedStatement statement = c.prepareStatement(query);
+            statement.executeUpdate();
+            System.out.println("Patient Record Successfully Deleted");
+        }catch(SQLException ex){
             System.out.println("Not Able to Delete Patient Record");
         }
     }
-    
+
     public void removeDoctorRecord(Doctor d) {
-    	String query = "DELETE FROM Doctor WHERE Doctor_ID = " + d.getId();
-    	try{
-    		PreparedStatement statement = c.prepareStatement(query);
-    		statement.executeUpdate();
-    		System.out.println("Doctor Record Successfully Deleted");
-    	}catch(SQLException ex){
+        String query = "DELETE FROM Doctor WHERE Doctor_ID = " + d.getId();
+        try{
+            PreparedStatement statement = c.prepareStatement(query);
+            statement.executeUpdate();
+            System.out.println("Doctor Record Successfully Deleted");
+        }catch(SQLException ex){
             System.out.println("Not Able to Delete Doctor Record");
         }
     }
-    
+
     public void removeEmployeeRecord(Employee e) {
-    	String query = "DELETE FROM MedicalEmployee WHERE Med_Employee_ID = " + e.getId();
-    	try{
-    		PreparedStatement statement = c.prepareStatement(query);
-    		statement.executeUpdate();
-    		System.out.println("Employee Record Successfully Deleted");
-    	}catch(SQLException ex){
+        String query = "DELETE FROM MedicalEmployee WHERE Med_Employee_ID = " + e.getId();
+        try{
+            PreparedStatement statement = c.prepareStatement(query);
+            statement.executeUpdate();
+            System.out.println("Employee Record Successfully Deleted");
+        }catch(SQLException ex){
             System.out.println("Not Able to Delete Employee Record");
         }
     }
 
     public void removeAppointment(Appointment a) {
-    	String query = "DELETE FROM Appointment WHERE Appointment_ID = " + a.getId();
-    	try{
-    		PreparedStatement statement = c.prepareStatement(query);
-    		statement.executeUpdate();
-    		System.out.println("Appointment Successfully Deleted");
-    	}catch(SQLException ex){
+        String query = "DELETE FROM Appointment WHERE Appointment_ID = " + a.getId();
+        try{
+            PreparedStatement statement = c.prepareStatement(query);
+            statement.executeUpdate();
+            System.out.println("Appointment Successfully Deleted");
+        }catch(SQLException ex){
             System.out.println("Not Able to Delete Appointment");
         }
     }
-    
-    
-    
+
+
+
     //RecordExists Methods
     public boolean patientExists(Patient p) {
-    	String query = "SELECT FROM Patient WHERE Patient_ID = " + p.getId();
-    	try{
-    		PreparedStatement statement = c.prepareStatement(query);
-    		ResultSet result = statement.executeQuery();
-    		if(result.next()) {
-    			return true;
-    		}
-    	}catch(SQLException ex){
+        String query = "SELECT FROM Patient WHERE Patient_ID = " + p.getId();
+        try{
+            PreparedStatement statement = c.prepareStatement(query);
+            ResultSet result = statement.executeQuery();
+            if(result.next()) {
+                return true;
+            }
+        }catch(SQLException ex){
             System.out.println("Connection Error");
         }
-    	return false;
+        return false;
     }
-    
+
     public boolean doctorExists(Doctor d) {
-    	String query = "SELECT FROM Doctor WHERE Doctor_ID = " + d.getId();
-    	try{
-    		PreparedStatement statement = c.prepareStatement(query);
-    		ResultSet result = statement.executeQuery();
-    		if(result.next()) {
-    			return true;
-    		}
-    	}catch(SQLException ex){
+        String query = "SELECT FROM Doctor WHERE Doctor_ID = " + d.getId();
+        try{
+            PreparedStatement statement = c.prepareStatement(query);
+            ResultSet result = statement.executeQuery();
+            if(result.next()) {
+                return true;
+            }
+        }catch(SQLException ex){
             System.out.println("Connection Error");
         }
-    	return false;
+        return false;
     }
-    
+
     public boolean employeeExists(Employee e) {
-    	String query = "SELECT FROM MedicalEmployee WHERE Med_Employee_ID = " + e.getId();
-    	try{
-    		PreparedStatement statement = c.prepareStatement(query);
-    		ResultSet result = statement.executeQuery();
-    		if(result.next()) {
-    			return true;
-    		}
-    	}catch(SQLException ex){
+        String query = "SELECT FROM MedicalEmployee WHERE Med_Employee_ID = " + e.getId();
+        try{
+            PreparedStatement statement = c.prepareStatement(query);
+            ResultSet result = statement.executeQuery();
+            if(result.next()) {
+                return true;
+            }
+        }catch(SQLException ex){
             System.out.println("Connection Error");
         }
-    	return false;
+        return false;
     }
-    
-    
+
+
     //Get Methods
 
     public ArrayList<Appointment> getAppointments(LocalDate date){
@@ -240,10 +239,10 @@ public class Scheduler {
             PreparedStatement pst = c.prepareStatement("Select * FROM Appointment WHERE Appt_Date = '" + currentDayFormatted+ "' ORDER BY Time");
             ResultSet result = pst.executeQuery();
             while(result.next()) {
-            	while(!((Timestamp)result.getObject(4)).toLocalDateTime().toLocalTime().equals(currentTime) && !currentTime.equals(closeTime)) {
-            		result_appts.add(null);
-            		currentTime.plusHours(1);
-            	}
+                while(!((Timestamp)result.getObject(4)).toLocalDateTime().toLocalTime().equals(currentTime) && !currentTime.equals(closeTime)) {
+                    result_appts.add(null);
+                    currentTime.plusHours(1);
+                }
                 Appointment temp_appt = new Appointment(result.getInt(1));
                 temp_appt.setAppt_Time(((Timestamp)result.getObject(4)).toLocalDateTime().toLocalTime());
                 temp_appt.setReason(result.getString(6));
@@ -271,13 +270,15 @@ public class Scheduler {
             e.printStackTrace();
         }
         while(currentTime != closeTime) {
-    		result_appts.add(null);
-    		currentTime.plusHours(1);
-    	}
+            result_appts.add(null);
+            currentTime.plusHours(1);
+        }
         return result_appts;
     }
 
-    
+
+
+
     public ArrayList<Appointment> getAppointments(LocalDate date, int doctor_ID){
         ArrayList<Appointment> result_appts = new ArrayList<Appointment>();
         java.sql.Date currentDayFormatted = java.sql.Date.valueOf(date);
@@ -287,10 +288,10 @@ public class Scheduler {
             PreparedStatement pst = c.prepareStatement("Select * FROM Appointment WHERE Appt_Date = '" + currentDayFormatted+ "' AND Doctor_ID = " + doctor_ID + " ORDER BY Time");
             ResultSet result = pst.executeQuery();
             while(result.next()) {
-            	while(!((Timestamp)result.getObject(4)).toLocalDateTime().toLocalTime().equals(currentTime) && !currentTime.equals(closeTime)) {
-            		result_appts.add(null);
-            		currentTime.plusHours(1);
-            	}
+                while(((Timestamp)result.getObject(4)).toLocalDateTime().toLocalTime() != currentTime && currentTime != closeTime) {
+                    result_appts.add(null);
+                    currentTime.plusHours(1);
+                }
                 Appointment temp_appt = new Appointment(result.getInt(1));
                 temp_appt.setAppt_Time(((Timestamp)result.getObject(4)).toLocalDateTime().toLocalTime());
                 temp_appt.setReason(result.getString(6));
@@ -298,7 +299,7 @@ public class Scheduler {
                 PreparedStatement patient_st = c.prepareStatement("Select Last_Name, First_Name FROM Patient WHERE Patient_ID = " + (int) result.getObject(2));
                 ResultSet patient_result = patient_st.executeQuery();
                 if(patient_result.next()) {
-                    temp_appt.setPatient_Name(patient_result.getString(1) + ", " + patient_result.getString(2)); 
+                    temp_appt.setPatient_Name(patient_result.getString(1) + ", " + patient_result.getString(2));
                     temp_appt.setPatient_Id(result.getInt(2));
                 }
 
@@ -318,13 +319,13 @@ public class Scheduler {
             e.printStackTrace();
         }
         while(currentTime != closeTime) {
-    		result_appts.add(null);
-    		currentTime.plusHours(1);
-    	}
+            result_appts.add(null);
+            currentTime.plusHours(1);
+        }
         return result_appts;
     }
 
-    
+
     public ArrayList<Patient> getPatientRecords(){
         ArrayList<Patient> result_records = new ArrayList<Patient>();
         try {
@@ -394,38 +395,38 @@ public class Scheduler {
         return result_records;
     }
 
-    
-    // Searches 
-    
+
+    // Searches
+
     public ArrayList<Patient> searchPatientRecords(String name){
-    	ArrayList<Patient> result_records = new ArrayList<Patient>();
-    	// search first & last names for string
-    	 try {
-             PreparedStatement pst = c.prepareStatement("Select * FROM Patient WHERE First_Name LIKE '%" + name + "%' OR Last_Name LIKE '%" + name + "%' ");
-             ResultSet result = pst.executeQuery();
-             while(result.next()) {
-                 Patient temp_patient = new Patient(
-                         result.getInt(1),
-                         result.getString(2),
-                         result.getString(3),
-                         result.getString(4),
-                         result.getString(5),
-                         result.getString(6),
-                         result.getString(7),
-                         result.getString(8)
-                 );
-                 result_records.add(temp_patient);
-             }
-         } catch (SQLException e) {
-             // TODO Auto-generated catch block
-             e.printStackTrace();
-         }
-    	return result_records;
+        ArrayList<Patient> result_records = new ArrayList<Patient>();
+        // search first & last names for string
+        try {
+            PreparedStatement pst = c.prepareStatement("Select * FROM Patient WHERE First_Name LIKE '%" + name + "%' OR Last_Name LIKE '%" + name + "%' ");
+            ResultSet result = pst.executeQuery();
+            while(result.next()) {
+                Patient temp_patient = new Patient(
+                        result.getInt(1),
+                        result.getString(2),
+                        result.getString(3),
+                        result.getString(4),
+                        result.getString(5),
+                        result.getString(6),
+                        result.getString(7),
+                        result.getString(8)
+                );
+                result_records.add(temp_patient);
+            }
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        return result_records;
     }
-    
+
     public ArrayList<Doctor> searchDoctorRecords(String name){
-    	ArrayList<Doctor> result_records = new ArrayList<Doctor>();
-    	// search name for string
+        ArrayList<Doctor> result_records = new ArrayList<Doctor>();
+        // search name for string
         try {
             PreparedStatement pst = c.prepareStatement("Select * FROM Doctor WHERE D_Name LIKE '%" + name + "%'");
             ResultSet result = pst.executeQuery();
@@ -442,12 +443,12 @@ public class Scheduler {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-    	return result_records;
+        return result_records;
     }
-    
+
     public ArrayList<Employee> searchEmployeeRecords(String name){
-    	ArrayList<Employee> result_records = new ArrayList<Employee>();
-    	// search name for string
+        ArrayList<Employee> result_records = new ArrayList<Employee>();
+        // search name for string
         try {
             PreparedStatement pst = c.prepareStatement("Select * FROM MedicalEmployee WHERE ME_Name LIKE '%" + name + "%'");
             ResultSet result = pst.executeQuery();
@@ -464,16 +465,19 @@ public class Scheduler {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-    	return result_records;
+        return result_records;
     }
-    
-    
-    
+
+
+
     // Classes
 
     public static class Patient{
         private int id;
         private String fname, lname, DOB, SSN, phone, address, email;
+        public Patient(String inputID){
+            id = Integer.parseInt(inputID);
+        }
         public Patient(String f, String l, String d, String s, String p, String a, String e){
             fname = f;
             lname = l;
@@ -517,23 +521,33 @@ public class Scheduler {
         public String getSSN(){return SSN;}
         public String getPhone(){return phone;}
         public String getAddress(){return address;}
-
-
-
         public int getId() {
             return id;
         }
-		public String getEmail() {
-			return email;
-		}
-		public void setEmail(String email) {
-			this.email = email;
-		}
+        public String getEmail() {
+            return email;
+        }
+        public void setEmail(String email) {
+            this.email = email;
+        }
+        public String[] getValues(){
+            String[] val = new String[8];
+            val[0] =  Integer.toString(id);
+            val[1] = fname;
+            val[2] = lname;
+            val[3] = DOB;
+            val[4] = SSN;
+            val[5] = phone;
+            val[6] = address;
+            val[7] = email;
+            return val;
+        }
     }
 
     public static class Doctor{
         private int id;
         private String D_Name, Phone, D_Password;
+        public Doctor(String id){this.id = Integer.parseInt(id);}
         public Doctor(String n, String p, String pw){
             D_Name = n;
             Phone = p;
@@ -563,12 +577,22 @@ public class Scheduler {
         public int getId() {
             return id;
         }
+        public String[] getValues(){
+            String[] val = new String[4];
+            val[0] =  Integer.toString(id);
+            val[1] = D_Name;
+            val[2] = Phone;
+            val[3] = D_Password;
+
+            return val;
+        }
     }
 
     public static class Employee{
         private int id;
         private String e_Name, e_Password;
         private boolean is_Receptionist;
+        public Employee(String id){this.id = Integer.parseInt(id);}
         public Employee(String n, String p, boolean r) {
             setE_Name(n);
             setE_Password(p);
@@ -599,13 +623,25 @@ public class Scheduler {
             return id;
         }
 
-		public boolean isIs_Receptionist() {
-			return is_Receptionist;
-		}
+        public boolean isIs_Receptionist() {
+            return is_Receptionist;
+        }
 
-		public void setIs_Receptionist(boolean is_Receptionist) {
-			this.is_Receptionist = is_Receptionist;
-		}
+        public void setIs_Receptionist(boolean is_Receptionist) {
+            this.is_Receptionist = is_Receptionist;
+        }
+        public String[] getValues(){
+            String[] val = new String[4];
+            val[0] =  Integer.toString(id);
+            val[1] = e_Name;
+            val[2] = e_Password;
+            if(is_Receptionist){
+                val[3] = "Receptionist";
+            }else{
+                val[3] = "Non-Receptionist";
+            }
+            return val;
+        }
     }
 
     public static class Appointment{
@@ -661,21 +697,32 @@ public class Scheduler {
             return id;
         }
 
-		public int getPatient_Id() {
-			return patient_Id;
-		}
+        public int getPatient_Id() {
+            return patient_Id;
+        }
 
-		public void setPatient_Id(int patient_Id) {
-			this.patient_Id = patient_Id;
-		}
+        public void setPatient_Id(int patient_Id) {
+            this.patient_Id = patient_Id;
+        }
 
-		public int getDoctor_Id() {
-			return doctor_Id;
-		}
+        public int getDoctor_Id() {
+            return doctor_Id;
+        }
 
-		public void setDoctor_Id(int doctor_Id) {
-			this.doctor_Id = doctor_Id;
-		}
+        public void setDoctor_Id(int doctor_Id) {
+            this.doctor_Id = doctor_Id;
+        }
+
+        public String[] getValues(){
+            String[] val = new String[6];
+            val[0] =  Integer.toString(id);
+            val[1] = Integer.toString(patient_Id);
+            val[2] = appt_Date.toString();
+            val[3] = appt_Time.toString();
+            val[4] = Integer.toString(doctor_Id);
+            val[5] = reason;
+            return val;
+        }
 
     }
 
