@@ -186,8 +186,10 @@ public class Scheduler {
 
     //RecordExists Methods
     public boolean patientExists(Patient p) {
-        String query = "SELECT FROM Patient WHERE Patient_ID = " + p.getId();
+        String query = "SELECT * FROM Patient WHERE Patient_ID = " + p.getId();
+        System.out.println(query);
         try{
+
             PreparedStatement statement = c.prepareStatement(query);
             ResultSet result = statement.executeQuery();
             if(result.next()) {
@@ -200,7 +202,7 @@ public class Scheduler {
     }
 
     public boolean doctorExists(Doctor d) {
-        String query = "SELECT FROM Doctor WHERE Doctor_ID = " + d.getId();
+        String query = "SELECT * FROM Doctor WHERE Doctor_ID = " + d.getId();
         try{
             PreparedStatement statement = c.prepareStatement(query);
             ResultSet result = statement.executeQuery();
@@ -214,7 +216,7 @@ public class Scheduler {
     }
 
     public boolean employeeExists(Employee e) {
-        String query = "SELECT FROM MedicalEmployee WHERE Med_Employee_ID = " + e.getId();
+        String query = "SELECT * FROM MedicalEmployee WHERE Med_Employee_ID = " + e.getId();
         try{
             PreparedStatement statement = c.prepareStatement(query);
             ResultSet result = statement.executeQuery();
