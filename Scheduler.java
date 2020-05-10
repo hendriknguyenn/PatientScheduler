@@ -1,22 +1,20 @@
 package patient_scheduler;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
-
-import javafx.geometry.Insets;
-import javafx.scene.control.Label;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
-import javafx.scene.text.Font;
-import patient_scheduler.Scheduler.Appointment;
 
 /**
  * This class is used to interact with the SchedulerDB.accdb
  * Tables of the DB: Appointment, Doctor, Patient, Medical Employee, Receptionist
  */
 public class Scheduler {
-    final static String databaseURL = "jdbc:ucanaccess://src//patient_scheduler//SchedulerDB.accdb";
     private Connection c;
 
     /**
@@ -24,7 +22,23 @@ public class Scheduler {
      * GUI interacts with Scheduler object and associated methods
      */
     public Scheduler(){
+        String dbdir = "c:/db/";
+        File f = new File(dbdir);
+        if(!f.exists())
+            f.mkdir();
+        String dbName = "SchedulerDB.accdb";
+        String dbPath = dbdir + "/" +dbName;
+        File f2 = new File(dbPath);
+        if(!f2.exists()){
+            InputStream is = Scheduler.class.getResourceAsStream("database/" + dbName);
+            try {
+                Files.copy(is, f2.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }catch(IOException e){
+                e.printStackTrace();
+            }
+        }
         try {
+            final String databaseURL = "jdbc:ucanaccess://" + dbPath;
             c = DriverManager.getConnection(databaseURL);
         } catch (SQLException e) {
             // TODO Auto-generated catch block
@@ -360,6 +374,37 @@ public class Scheduler {
     }
 
 
+    public Appointment[] getAppts(LocalDate date, int doctor_ID){
+        Appointment[] list = {null,null,null,null,null,null,null,null,null,null,null};
+        ArrayList<Appointment> result_appt = new ArrayList<Appointment>();
+        java.sql.Date currentDay = java.sql.Date.valueOf(date);
+        try {
+            PreparedStatement pst = c.prepareStatement("Select * FROM Appointment WHERE Appt_Date = '" + currentDay + "' AND Doctor_ID = " + doctor_ID + " ORDER BY Time");
+            ResultSet result = pst.executeQuery();
+            while(result.next()) {
+                Appointment temp = new Appointment(result.getInt(1));
+                temp.setPatient_Id(result.getInt(2));
+                temp.setAppt_Date(result.getDate(3).toLocalDate());
+                temp.setAppt_Time(result.getTime(4).toLocalTime());
+                temp.setDoctor_Id(result.getInt(5));
+                temp.setReason(result.getString(6));
+                result_appt.add(temp);
+            }
+            if(result_appt.size()!=0){
+                for(int i=0; i<list.length;i++){
+                    LocalTime time = LocalTime.of(i+7,0);
+                    for(int j=0; j<result_appt.size();j++){
+                        if(result_appt.get(j).getAppt_Time().equals(time)){
+                            list[i] = result_appt.get(j);
+                        }
+                    }
+                }
+            }
+        }catch (SQLException ex){
+            System.out.println("Unable to Connect");
+        }
+        return list;
+    }
 
 
     public Appointment[] getApptsForDV(LocalDate date, int doctor_ID){
@@ -395,9 +440,13 @@ public class Scheduler {
                         }
                     }
                     if(j==result_appts.size()){
-                        System.out.println(" has no appointment");
                         list[i] = null;
                     }
+                }
+                if(list[i] == null){
+                    System.out.println("no apointmennt");
+                }else{
+                    System.out.println(list[i].getId());
                 }
             }
 

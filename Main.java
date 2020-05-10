@@ -1,22 +1,17 @@
 package patient_scheduler;
 
-import com.sun.org.apache.xml.internal.resolver.helpers.BootstrapResolver;
 import javafx.animation.*;
 import javafx.application.Application;
-import javafx.beans.binding.Binding;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
-import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.LightBase;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.Button;
@@ -28,37 +23,31 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontPosture;
 import javafx.scene.text.FontWeight;
-import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
-import javax.lang.model.element.Element;
-import javax.management.remote.rmi._RMIConnection_Stub;
-import javax.swing.*;
-import java.awt.*;
-import java.lang.annotation.ElementType;
-import java.lang.reflect.Field;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.sql.*;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.concurrent.Callable;
-import java.util.regex.Pattern;
 
 public class Main extends Application {
     private Button loginBtn, logoutBtn, addBtn, editBtn, delBtn, nextDayBtn, prevDayBtn, exitBtn, scheduleBtn, cancelBtn, viewProfileBtn, createRecBtn, reminderBtn;
     private TextField usernameTF, pwTF, currentPW, searchRecordTF;
-    final static String databaseURL = "jdbc:ucanaccess://src//patient_scheduler//SchedulerDB.accdb";
     private Stage primaryStage, addAppointmentWindow, userProfileWindow, editPatientRecordWindow, deleteRecordWindow, addNonApptWindow;
-    private String sessionType, sessionUserID, currentView, selectedRecordID, selectedRecordType;
+    private String sessionType, sessionUserID, currentView, selectedRecordID;
     private BorderPane home, functions, data;
     private RadioButton dayView, patientDBView, employeeDBView, doctorDBView, appointmentDBView;
     private ToggleGroup viewOptions, dayViewAppointments, dataBaseSelection;
     private LocalDate today, currentDay;
     private Label date;
     private Scheduler dbAccessor;
-    //use as reference for: editing a selected record or timeslot
     private Scheduler.Patient selectedPatRec;
     private Scheduler.Employee selectedEmpRec;
     private Scheduler.Doctor selectedDocRec;
@@ -237,7 +226,6 @@ public class Main extends Application {
                         editBtn.setOnAction(editPatientRecordEvent);
                         delBtn.setDisable(false);
                         delBtn.setOnAction(delRecordEvent);
-
                     }else{
                         addBtn.setDisable(true);
                         delBtn.setDisable(false);
@@ -737,7 +725,23 @@ public class Main extends Application {
         else{
             query = "SELECT * FROM Doctor WHERE Doctor_ID = "+ ID + " AND D_Password = " +pword;
         }
+        String dbdir = "c:/db/";
+        File f = new File(dbdir);
+        if(!f.exists())
+            f.mkdir();
+        String dbName = "SchedulerDB.accdb";
+        String dbPath = dbdir + "/" +dbName;
+        File f2 = new File(dbPath);
+        if(!f2.exists()){
+            InputStream is = Main.class.getResourceAsStream("database/" + dbName);
+            try {
+                Files.copy(is, f2.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }catch(IOException e){
+                e.printStackTrace();
+            }
+        }
         try{
+            final String databaseURL = "jdbc:ucanaccess://" + dbPath;
             Connection con = DriverManager.getConnection(databaseURL);
             PreparedStatement pst = con.prepareStatement(query);
             ResultSet rs = pst.executeQuery();
@@ -765,6 +769,7 @@ public class Main extends Application {
                 wrongCred.showAndWait();
             }
         } catch (SQLException e) {
+            e.printStackTrace();
             System.out.println("Connection to database failed");
             Alert invalidUser = new Alert(Alert.AlertType.ERROR);
             invalidUser.setHeaderText("Invalid username or password");
@@ -1084,16 +1089,23 @@ public class Main extends Application {
             ChoiceBox<String> employeeType = new ChoiceBox<>();
             createRecBtn = new Button("Create Employee");
             createRecBtn.setOnAction(event1 -> {
+                boolean allNum = pwTF.getText().chars().allMatch(Character::isDigit);
                 Alert invalidInput;
                 if(nameTF.getText().trim() !="" && pwTF.getText().trim()!=""&& employeeType.getSelectionModel().getSelectedItem()!=null){
                     boolean receptionist = false;
-                    if(employeeType.getSelectionModel().getSelectedItem() == "Receptionist"){
-                        receptionist = true;
+                    if(allNum) {
+                        if (employeeType.getSelectionModel().getSelectedItem() == "Receptionist") {
+                            receptionist = true;
+                        }
+                        dbAccessor.createEmployeeRecord(new Scheduler.Employee(nameTF.getText(), pwTF.getText(), receptionist));
+                        setData();
+                        addNonApptWindow.close();
+                        enablePrimary();
+                    }else{
+                        invalidInput = new Alert(Alert.AlertType.ERROR);
+                        invalidInput.setContentText("Numeric Password Only");
+                        invalidInput.showAndWait();
                     }
-                    dbAccessor.createEmployeeRecord(new Scheduler.Employee(nameTF.getText(), pwTF.getText(), receptionist));
-                    setData();
-                    addNonApptWindow.close();
-                    enablePrimary();
                 }else{
                     invalidInput = new Alert(Alert.AlertType.ERROR);
                     invalidInput.setContentText("Please fill out the entire form");
@@ -1142,12 +1154,19 @@ public class Main extends Application {
             TextField pwTF = new TextField();
             createRecBtn = new Button("Create Dooctor");
             createRecBtn.setOnAction(event1 -> {
+                boolean allNum = pwTF.getText().chars().allMatch(Character::isDigit);
                 Alert invalidInput;
                 if(nameTF.getText().trim() !="" && pwTF.getText().trim()!=""&& phoneTF.getText().trim() != ""){
-                    dbAccessor.createDoctorRecord(new Scheduler.Doctor(nameTF.getText(), phoneTF.getText(), pwTF.getText()));
-                    setData();
-                    addNonApptWindow.close();
-                    enablePrimary();
+                    if(allNum) {
+                        dbAccessor.createDoctorRecord(new Scheduler.Doctor(nameTF.getText(), phoneTF.getText(), pwTF.getText()));
+                        setData();
+                        addNonApptWindow.close();
+                        enablePrimary();
+                    }else{
+                        invalidInput = new Alert(Alert.AlertType.ERROR);
+                        invalidInput.setContentText("Numeric Password Only");
+                        invalidInput.showAndWait();
+                    }
                 }else{
                     invalidInput = new Alert(Alert.AlertType.ERROR);
                     invalidInput.setContentText("Please fill out the entire form");
