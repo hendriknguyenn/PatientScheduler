@@ -18,6 +18,7 @@ import patient_scheduler.Scheduler.Appointment;
 public class Scheduler {
     final static String databaseURL = "jdbc:ucanaccess://src//patient_scheduler//SchedulerDB.accdb";
     private Connection c;
+
     /**
      * Opens the scheduler.
      * GUI interacts with Scheduler object and associated methods
@@ -188,7 +189,6 @@ public class Scheduler {
     //RecordExists Methods
     public boolean patientExists(Patient p) {
         String query = "SELECT * FROM Patient WHERE Patient_ID = " + p.getId();
-        System.out.println(query);
         try{
 
             PreparedStatement statement = c.prepareStatement(query);
@@ -234,54 +234,25 @@ public class Scheduler {
     //Get Methods
 
     public ArrayList<Appointment> getAppointments(LocalDate date){
-        ArrayList<Appointment> result_appts = new ArrayList<Appointment>();
-        java.sql.Date currentDayFormatted = java.sql.Date.valueOf(date);
-        LocalTime currentTime = LocalTime.of(7, 0);
-        LocalTime closeTime = LocalTime.of(18, 0);
-        try {
-            PreparedStatement pst = c.prepareStatement("Select * FROM Appointment WHERE Appt_Date = '" + currentDayFormatted+ "' ORDER BY Time");
+        ArrayList<Appointment> results_appts = new ArrayList();
+        java.sql.Date currentDay = java.sql.Date.valueOf(date);
+        try{
+            PreparedStatement pst = c.prepareStatement("Select * FROM Appointment WHERE Appt_Date = '" + currentDay + "' ORDER BY Time");
             ResultSet result = pst.executeQuery();
-            while(result.next()) {
-                while(!((Timestamp)result.getObject(4)).toLocalDateTime().toLocalTime().equals(currentTime) && !currentTime.equals(closeTime)) {
-                    result_appts.add(null);
-                    currentTime = currentTime.plusHours(1);
-                }
-                Appointment temp_appt = new Appointment(result.getInt(1));
-                temp_appt.setAppt_Time(((Timestamp)result.getObject(4)).toLocalDateTime().toLocalTime());
-                temp_appt.setReason(result.getString(6));
-
-                PreparedStatement patient_st = c.prepareStatement("Select Last_Name, First_Name FROM Patient WHERE Patient_ID = " + (int) result.getObject(2));
-                ResultSet patient_result = patient_st.executeQuery();
-                if(patient_result.next()) {
-                    temp_appt.setPatient_Name(patient_result.getString(1) + ", " + patient_result.getString(2));
-                    temp_appt.setPatient_Id(result.getInt(2));
-                }
-
-                PreparedStatement doctor_st = c.prepareStatement("Select D_Name FROM Doctor WHERE Doctor_ID = " + (int) result.getObject(5));
-                ResultSet doctor_result = doctor_st.executeQuery();
-                if(doctor_result.next()) {
-                    temp_appt.setDoctor_Name(doctor_result.getString(1));
-                    temp_appt.setDoctor_Id(result.getInt(5));
-                }
-
-                result_appts.add(temp_appt);
-
-
+            while(result.next()){
+                Appointment temp = new Appointment(result.getInt(1));
+                temp.setPatient_Id(result.getInt(2));
+                temp.setAppt_Date(result.getDate(3).toLocalDate());
+                temp.setAppt_Time(result.getTime(4).toLocalTime());
+                temp.setDoctor_Id(result.getInt(5));
+                temp.setReason(result.getString(6));
+                results_appts.add(temp);
             }
-        } catch (SQLException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+        }catch(SQLException ex){
+            System.out.println("Unable to Connect");
         }
-        while( !currentTime.equals(closeTime)) {
-            result_appts.add(null);
-            currentTime = currentTime.plusHours(1);
-        }
-        return result_appts;
+        return results_appts;
     }
-
-
-
-
     public ArrayList<Appointment> getAppointments(LocalDate date, int doctor_ID){
         ArrayList<Appointment> result_appts = new ArrayList<Appointment>();
         java.sql.Date currentDayFormatted = java.sql.Date.valueOf(date);
@@ -328,6 +299,114 @@ public class Scheduler {
         return result_appts;
     }
 
+    public ArrayList<Appointment> getApptsForRV(LocalDate date, int doctor_ID){
+        ArrayList<Appointment> result_appts = new ArrayList<>();
+        Appointment[] list = new Appointment[11];
+        java.sql.Date currentDay = java.sql.Date.valueOf(date);
+        LocalTime t = LocalTime.of(7,0);
+        try {
+            PreparedStatement pst = c.prepareStatement("Select * FROM Appointment WHERE Appt_Date = '" + currentDay + "' AND Doctor_ID = " + doctor_ID + " ORDER BY Time");
+            ResultSet result = pst.executeQuery();
+            while (result.next()) {
+                Appointment temp = new Appointment(result.getInt(1));
+                temp.setPatient_Id(result.getInt(2));
+                temp.setAppt_Date(result.getDate(3).toLocalDate());
+                temp.setAppt_Time(result.getTime(4).toLocalTime());
+                temp.setDoctor_Id(result.getInt(5));
+                temp.setReason(result.getString(6));
+
+                PreparedStatement patient_st = c.prepareStatement("Select Last_Name, First_Name FROM Patient WHERE Patient_ID = " + (int) result.getObject(2));
+                ResultSet patient_result = patient_st.executeQuery();
+                if(patient_result.next()) {
+                    temp.setPatient_Name(patient_result.getString(1) + ", " + patient_result.getString(2));
+                    temp.setPatient_Id(result.getInt(2));
+                }
+
+                PreparedStatement doctor_st = c.prepareStatement("Select D_Name FROM Doctor WHERE Doctor_ID = " + (int) result.getObject(5));
+                ResultSet doctor_result = doctor_st.executeQuery();
+                if(doctor_result.next()) {
+                    temp.setDoctor_Name(doctor_result.getString(1));
+                    temp.setDoctor_Id(result.getInt(5));
+                }
+                result_appts.add(temp);
+            }
+        }catch (SQLException ex){
+            System.out.println("Unable to Connect");
+        }
+        return result_appts;
+    }
+
+    public ArrayList<Appointment> getApptsForRV(LocalDate date){
+        ArrayList<Appointment> result_appts = new ArrayList<>();
+        Appointment[] list = new Appointment[11];
+        java.sql.Date currentDay = java.sql.Date.valueOf(date);
+        LocalTime t = LocalTime.of(7,0);
+        try {
+            PreparedStatement pst = c.prepareStatement("Select * FROM Appointment WHERE Appt_Date = '" + currentDay + "' ORDER BY Time");
+            ResultSet result = pst.executeQuery();
+            while (result.next()) {
+                Appointment temp = new Appointment(result.getInt(1));
+                temp.setPatient_Id(result.getInt(2));
+                temp.setAppt_Date(result.getDate(3).toLocalDate());
+                temp.setAppt_Time(result.getTime(4).toLocalTime());
+                temp.setDoctor_Id(result.getInt(5));
+                temp.setReason(result.getString(6));
+                result_appts.add(temp);
+            }
+        }catch (SQLException ex){
+            System.out.println("Unable to Connect");
+        }
+        return result_appts;
+    }
+
+
+
+
+    public Appointment[] getApptsForDV(LocalDate date, int doctor_ID){
+        ArrayList<Appointment> result_appts = new ArrayList<>();
+        Appointment[] list = new Appointment[11];
+        java.sql.Date currentDay = java.sql.Date.valueOf(date);
+        LocalTime t = LocalTime.of(7,0);
+        try{
+            PreparedStatement pst = c.prepareStatement("Select * FROM Appointment WHERE Appt_Date = '" + currentDay+ "' AND Doctor_ID = " + doctor_ID + " ORDER BY Time");
+            ResultSet result = pst.executeQuery();
+            while(result.next()){
+                Appointment temp = new Appointment(result.getInt(1));
+                temp.setPatient_Id(result.getInt(2));
+                temp.setAppt_Date(result.getDate(3).toLocalDate());
+                temp.setAppt_Time(result.getTime(4).toLocalTime());
+                temp.setDoctor_Id(result.getInt(5));
+                temp.setReason(result.getString(6));
+                result_appts.add(temp);
+            }
+            for(int i=0;i<list.length;i++){
+                LocalTime time = LocalTime.of(i+7,0);
+                if(result_appts.size()==0){
+                    list[i] = null;
+                }else{
+                    boolean found = false;
+                    int j=0;
+                    while(j<result_appts.size() && !found){
+                        if(result_appts.get(j).getAppt_Time().equals(time)){
+                            list[i] = result_appts.get(j);
+                            found = true;
+                        }else{
+                            j+=1;
+                        }
+                    }
+                    if(j==result_appts.size()){
+                        System.out.println(" has no appointment");
+                        list[i] = null;
+                    }
+                }
+            }
+
+        }catch (SQLException ex){
+            System.out.println("Unable to Connect");
+        }
+        return list;
+    }
+
 
     public ArrayList<Patient> getPatientRecords(){
         ArrayList<Patient> result_records = new ArrayList<Patient>();
@@ -345,7 +424,6 @@ public class Scheduler {
                         result.getString(7),
                         result.getString(8)
                 );
-                System.out.println(temp_patient.getEmail());
                 result_records.add(temp_patient);
             }
         } catch (SQLException e) {

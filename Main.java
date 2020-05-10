@@ -16,6 +16,7 @@ import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.LightBase;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.Button;
@@ -46,7 +47,7 @@ import java.util.concurrent.Callable;
 import java.util.regex.Pattern;
 
 public class Main extends Application {
-    private Button loginBtn, logoutBtn, addBtn, editBtn, delBtn, nextDayBtn, prevDayBtn, exitBtn, scheduleBtn, cancelBtn, viewProfileBtn, createRecBtn;
+    private Button loginBtn, logoutBtn, addBtn, editBtn, delBtn, nextDayBtn, prevDayBtn, exitBtn, scheduleBtn, cancelBtn, viewProfileBtn, createRecBtn, reminderBtn;
     private TextField usernameTF, pwTF, currentPW, searchRecordTF;
     final static String databaseURL = "jdbc:ucanaccess://src//patient_scheduler//SchedulerDB.accdb";
     private Stage primaryStage, addAppointmentWindow, userProfileWindow, editPatientRecordWindow, deleteRecordWindow, addNonApptWindow;
@@ -63,6 +64,22 @@ public class Main extends Application {
     private Scheduler.Doctor selectedDocRec;
     private Scheduler.Appointment selectedAppt;
     private static TimeSlot selected;
+    final Color startColor = Color.web("#e08090");
+    final Color endColor = Color.web("#80e090");
+    final ObjectProperty<Color> color = new SimpleObjectProperty<Color>(startColor);
+    final StringBinding flash = Bindings.createStringBinding(new Callable<String>() {
+        @Override
+        public String call() throws Exception {
+            return String.format("-fx-body-color: rgb(%d, %d, %d);",
+                    (int) (256*color.get().getRed()),
+                    (int) (256*color.get().getGreen()),
+                    (int) (256*color.get().getBlue()));
+        }
+    }, color);
+
+    final Timeline timeline = new Timeline(
+            new KeyFrame(Duration.ZERO, new KeyValue(color, startColor)),
+            new KeyFrame(Duration.seconds(1), new KeyValue(color, endColor)));
 
     @Override
     public void start(Stage ps) throws Exception {
@@ -79,6 +96,10 @@ public class Main extends Application {
         today = LocalDate.now();
         currentDay = today;
         currentView = "Day View";
+        reminderBtn = new Button("Appt. Reminders");
+        reminderBtn.setPrefWidth(200);
+        reminderBtn.styleProperty().bind(flash);
+        reminderBtn.setOnAction(reminderListEvent);
         setViewOptions();
         setDataOptions();
         home.setLeft(functions);
@@ -134,20 +155,15 @@ public class Main extends Application {
             ArrayList<Scheduler.Appointment> appointments;
             String type;
             if(sessionType == "Doctor"){
-                appointments = dbAccessor.getAppointments(today, Integer.parseInt(sessionUserID));
-                appointments.addAll(dbAccessor.getAppointments(today.plusDays(1), Integer.parseInt(sessionUserID)));
-                appointments.addAll(dbAccessor.getAppointments(today.plusDays(2), Integer.parseInt(sessionUserID)));
+                appointments = dbAccessor.getApptsForRV(today, Integer.parseInt(sessionUserID));
+                appointments.addAll(dbAccessor.getApptsForRV(today.plusDays(1),Integer.parseInt(sessionUserID)));
+                appointments.addAll(dbAccessor.getApptsForRV(today.plusDays(2),Integer.parseInt(sessionUserID)));
                 type = "Your Appointments";
             }else{
-                appointments = dbAccessor.getAppointments(today);
-                appointments.addAll(dbAccessor.getAppointments(today.plusDays(1)));
-                appointments.addAll(dbAccessor.getAppointments(today.plusDays(2)));
+                appointments = dbAccessor.getApptsForRV(today);
+                appointments.addAll(dbAccessor.getApptsForRV(today.plusDays(1)));
+                appointments.addAll(dbAccessor.getApptsForRV(today.plusDays(2)));
                 type = "Appointment";
-            }
-            for(int i=0; i< appointments.size(); i++){
-                if(appointments.get(i) == null){
-                    appointments.remove(i);
-                }
             }
             apptList = appointments.toArray(new Scheduler.Appointment[appointments.size()]);
             recordData.setCenter(buildRecordsData(apptList, type));
@@ -324,7 +340,8 @@ public class Main extends Application {
             currentDay = currentDay.plusDays(1);
             date.setText(currentDay.getMonth().toString() + " " + currentDay.getDayOfMonth() +", "+ currentDay.getYear());
             data.setCenter(createDayView());
-            prevDayBtn.setDisable(false);
+            if(currentDay == today)
+                prevDayBtn.setDisable(false);
         });
         nextDayBtn.setPrefSize(30, 400);
         HBox box = new HBox(nextDayBtn);
@@ -441,7 +458,7 @@ public class Main extends Application {
             col = new VBox();
             col.getChildren().add(header);
             //get appointments for each doctor
-            Scheduler.Appointment[] doctorsApptByID = dbAccessor.getAppointments(currentDay, Integer.parseInt(dID)).toArray(new Scheduler.Appointment[dbAccessor.getAppointments(currentDay, Integer.parseInt(dID)).size()]);
+            Scheduler.Appointment[] apptList = dbAccessor.getAppointments(currentDay, doctorList[i].getId()).toArray(new Scheduler.Appointment[11]);
             for(int j=0; j<11; j++){
                 //get time for user data
                 String time;
@@ -454,7 +471,7 @@ public class Main extends Application {
                 }
                 //set timeslot toggle buttons for current doctor/column; buttonText = N/A for empty slot, ApptID#: ## for taken slot
                 String buttonText;
-                if(doctorsApptByID[j] == null){
+                if(apptList[j] == null){
                     //empty time slot
                     buttonText = "N/A";
                     timeslot = new ToggleButton("N/A");
@@ -464,7 +481,7 @@ public class Main extends Application {
                     timeslot.setToggleGroup(dayViewAppointments);
                 }else{
                     //taken time slot
-                    buttonText = "ApptID# " + doctorsApptByID[j].getId()+"";
+                    buttonText = "ApptID# " + apptList[j].getId()+"";
                     timeslot = new ToggleButton(buttonText);
                     timeslot.setStyle("-fx-border-style: solid inside;"+
                             "fx-border-width: 1px;"+
@@ -547,34 +564,83 @@ public class Main extends Application {
         });
         VBox bottom;
         if(sessionType == "Receptionist"){
-            Button reminderBtn = new Button("Appt. Reminders");
-            reminderBtn.setPrefWidth(200);
-            final Color startColor = Color.web("#e08090");
-            final Color endColor = Color.web("#80e090");
-            final ObjectProperty<Color> color = new SimpleObjectProperty<Color>(startColor);
-            final StringBinding flash = Bindings.createStringBinding(new Callable<String>() {
-                @Override
-                public String call() throws Exception {
-                    return String.format("-fx-body-color: rgb(%d, %d, %d);",
-                            (int) (256*color.get().getRed()),
-                            (int) (256*color.get().getGreen()),
-                            (int) (256*color.get().getBlue()));
-                }
-            }, color);
-                    reminderBtn.styleProperty().bind(flash);
-            final Timeline timeline = new Timeline(
-                    new KeyFrame(Duration.ZERO, new KeyValue(color, startColor)),
-                    new KeyFrame(Duration.seconds(1), new KeyValue(color, endColor)));
-            reminderBtn.setOnAction(event -> {
-                timeline.play();
-            });
-            //get appointments for the next day: today + 1
             bottom = new VBox(reminderBtn,viewProfileBtn,logoutBtn,exitBtn);
         }else{
             bottom = new VBox(viewProfileBtn,logoutBtn,exitBtn);
         }
         functions.setBottom(bottom);
     }
+
+    EventHandler<ActionEvent> reminderListEvent = new EventHandler<ActionEvent>() {
+        @Override
+        public void handle(ActionEvent event) {
+            Stage apptReminderWindow = new Stage();
+            apptReminderWindow.setTitle("Appointment Reminder List");
+            BorderPane reminderLayout = new BorderPane();
+            reminderLayout.setPrefSize(300,200);
+            ScrollPane sp = new ScrollPane();
+            GridPane apptRemGP = new GridPane();
+            apptRemGP.setPadding(new Insets(5,5,5,5));
+            apptRemGP.setAlignment(Pos.TOP_LEFT);
+            apptRemGP.setVgap(10);
+            apptRemGP.setHgap(15);
+            //headers: apptID, doctorID, patientID + name, patientPhone
+            Label date = new Label("Appt Date");
+            Label appt = new Label("ApptID");
+            Label time = new Label("Appt Time");
+            date.setFont(Font.font("Arial",FontWeight.BOLD,12));
+            appt.setFont(Font.font("Arial",FontWeight.BOLD,12));
+            time.setFont(Font.font("Arial",FontWeight.BOLD,12));
+            date.setAlignment(Pos.CENTER);
+            appt.setAlignment(Pos.CENTER);
+            time.setAlignment(Pos.CENTER);
+            apptRemGP.addRow(0,date, appt, time);
+            ArrayList<Scheduler.Appointment> todaysAppt = dbAccessor.getApptsForRV(today.plusDays(1));
+            if(todaysAppt.size() == 0){
+                Label noAppt = new Label("No Appointments Tomorrow");
+                noAppt.setFont(Font.font(20));
+                HBox temp = new HBox(noAppt);
+                temp.setAlignment(Pos.CENTER);
+                sp.setContent(temp);
+            }else{
+                for(int i=0; i<todaysAppt.size();i++){
+                    Scheduler.Appointment appointment = todaysAppt.get(i);
+                    Label apptDate = new Label(appointment.getAppt_Date()+"");
+                    Label apptID = new Label(appointment.getId()+"");
+                    Label apptTime = new Label(appointment.getAppt_Time()+"");
+                    apptDate.setAlignment(Pos.CENTER);
+                    apptID.setAlignment(Pos.CENTER);
+                    apptTime.setAlignment(Pos.CENTER);
+                    apptRemGP.addRow(i+1, apptDate, apptID, apptTime);
+                }
+                sp.setContent(apptRemGP);
+            }
+
+
+            Button close = new Button("Close");
+            close.setOnAction(event1 -> {
+                apptReminderWindow.close();
+                timeline.play();
+                enablePrimary();
+            });
+            close.setPrefWidth(100);
+            apptRemGP.setPrefSize(300,200);
+            Label title = new Label("Appointment Reminders");
+            title.setFont(Font.font("Arial", FontWeight.BOLD, 16));
+            HBox container = new HBox(title);
+            container.setAlignment(Pos.CENTER);
+            container.setPadding(new Insets(5,5,5,5));
+            reminderLayout.setTop(container);
+            reminderLayout.setCenter(sp);
+            container = new HBox(close);
+            container.setAlignment(Pos.CENTER);
+            reminderLayout.setBottom(container);
+            apptReminderWindow.setScene(new Scene(reminderLayout));
+            disablePrimary();
+            apptReminderWindow.showAndWait();
+            enablePrimary();
+        }
+    };
 
     public void setDataOptions(){
         VBox data = new VBox();
@@ -665,23 +731,33 @@ public class Main extends Application {
         String query;
         int ID = Integer.parseInt(usernameTF.getText());  // get the ID number from the input
         String pword = pwTF.getText().trim();
-        if(credential=="Receptionist" || credential=="Medical Employee") {				// changes values for obtaining login from msaccess database
+        if(credential=="Medical Employee" || credential =="Receptionist") {				// changes values for obtaining login from msaccess database
             query = "SELECT * FROM MedicalEmployee WHERE Med_Employee_ID = "+ ID + " AND ME_Password = " +pword;
         }
-        else if (credential=="Doctor") {
+        else{
             query = "SELECT * FROM Doctor WHERE Doctor_ID = "+ ID + " AND D_Password = " +pword;
-        }else {
-            query = "";
         }
         try{
             Connection con = DriverManager.getConnection(databaseURL);
             PreparedStatement pst = con.prepareStatement(query);
-            System.out.println("hi");
             ResultSet rs = pst.executeQuery();
             if (rs.next()) {
-                sessionUserID = ID+"";
-                sessionType = credential;
-                primaryStage.setScene(createHomeScene());
+                if(credential == "Receptionist"){
+                    if(rs.getBoolean(4)){
+                        sessionUserID = ID+"";
+                        sessionType = credential;
+                        primaryStage.setScene(createHomeScene());
+                    }else{
+                        Alert wrongCred = new Alert(Alert.AlertType.ERROR);
+                        wrongCred.setHeaderText("Invalid username or password");
+                        wrongCred.setContentText("Please contact your administrator if you forgot your credentials");
+                        wrongCred.showAndWait();
+                    }
+                }else{
+                    sessionUserID = ID+"";
+                    sessionType = credential;
+                    primaryStage.setScene(createHomeScene());
+                }
             }else {
                 Alert wrongCred = new Alert(Alert.AlertType.ERROR);
                 wrongCred.setHeaderText("Invalid username or password");
@@ -745,7 +821,6 @@ public class Main extends Application {
                 enablePrimary();
             });
             confirm.setOnAction(event1 -> {
-                System.out.println(selectedRecordID);
                 if(currentView == "Appointment"){
                     Scheduler.Appointment temp = new Scheduler.Appointment(Integer.parseInt(selectedRecordID));
                     dbAccessor.removeAppointment(temp);
@@ -954,6 +1029,7 @@ public class Main extends Application {
                                 addAppointmentWindow.close();
                                 enablePrimary();
                                 setData();
+                                home.setRight(data);
 
                             }else{
                                 invalidID = new Alert(Alert.AlertType.ERROR);
